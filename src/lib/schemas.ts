@@ -1,0 +1,141 @@
+import { z } from "zod";
+
+const exerciseTypeEnum = z.enum([
+  "CODING",
+  "CIRCUIT",
+  "VISUAL",
+  "MCQ",
+  "GRADED_TEXT",
+  "ORDERING",
+  "FILL_BLANK",
+  "MATCHING",
+]);
+
+const sectionPlanEnum = z.enum(["READING", "VIDEO", "WORKSHEET", "QUESTIONS", "EXERCISE"]);
+
+export const courseBlueprintSchema = z.object({
+  title: z.string(),
+  summary: z.string(),
+  level: z.string(),
+  subjects: z
+    .array(
+      z.object({
+        title: z.string(),
+        summary: z.string(),
+        goals: z.array(z.string()).min(1).max(6),
+      })
+    )
+    .min(2)
+    .max(5),
+});
+export type CourseBlueprint = z.infer<typeof courseBlueprintSchema>;
+
+export const subjectBlueprintSchema = z.object({
+  lessons: z
+    .array(
+      z.object({
+        title: z.string(),
+        summary: z.string(),
+        sections: z
+          .array(
+            z.object({
+              type: sectionPlanEnum,
+              title: z.string().optional(),
+              exerciseType: exerciseTypeEnum.optional(),
+            })
+          )
+          .min(4)
+          .max(5),
+      })
+    )
+    .min(2)
+    .max(5),
+});
+export type SubjectBlueprint = z.infer<typeof subjectBlueprintSchema>;
+
+export const imageSpecSchema = z.object({
+  slot: z.string(),
+  /** DALL·E generation prompt (preferred). */
+  prompt: z.string(),
+  alt: z.string(),
+  caption: z.string().optional(),
+  /** Optional SERP fallback query when image gen fails. */
+  query: z.string().optional(),
+});
+
+export const readingSchema = z.object({
+  markdown: z.string(),
+  images: z.array(imageSpecSchema).min(2).max(5),
+});
+export type ReadingContent = z.infer<typeof readingSchema>;
+
+export const worksheetSchema = z.object({
+  markdown: z.string(),
+  images: z.array(imageSpecSchema).max(3).default([]),
+});
+export type WorksheetContent = z.infer<typeof worksheetSchema>;
+
+export const imageSlotReviewSchema = z.object({
+  slot: z.string(),
+  relevant: z.boolean(),
+  reason: z.string().default(""),
+  /** Better image search query when relevant is false. */
+  newQuery: z.string().optional(),
+});
+
+export const imageReviewSchema = z.object({
+  ok: z.boolean(),
+  notes: z.string().optional(),
+  slots: z.array(imageSlotReviewSchema),
+});
+export type ImageReview = z.infer<typeof imageReviewSchema>;
+
+export const questionsSectionSchema = z.object({
+  title: z.string().default("Review questions"),
+  items: z
+    .array(
+      z.object({
+        question: z.string(),
+        choices: z.array(z.string()).min(2),
+        answerIndex: z.number().int().min(0),
+        explanation: z.string(),
+      })
+    )
+    .min(3)
+    .max(8),
+});
+export type QuestionsSection = z.infer<typeof questionsSectionSchema>;
+
+export const videoSchema = z.object({
+  title: z.string(),
+  narration: z.string(),
+  manimScene: z.string(),
+  durationSec: z.number().int().min(15).max(240).default(60),
+  questions: z
+    .array(
+      z.object({
+        atSec: z.number().int().min(0),
+        question: z.string(),
+        choices: z.array(z.string()).min(2),
+        answerIndex: z.number().int().min(0),
+      })
+    )
+    .default([]),
+});
+export type VideoSpec = z.infer<typeof videoSchema>;
+
+export const exerciseSchema = z.object({
+  title: z.string(),
+  prompt: z.string(),
+  difficulty: z.string().default("intro"),
+  config: z.record(z.unknown()).default({}),
+  solution: z.any().optional(),
+});
+export type ExerciseSpec = z.infer<typeof exerciseSchema>;
+
+export type ReadingSectionData = {
+  markdown: string;
+  images: { url: string; alt: string; caption?: string; prompt: string }[];
+};
+
+export type QuestionsSectionData = QuestionsSection;

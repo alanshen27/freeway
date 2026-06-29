@@ -1,0 +1,64 @@
+# Full self-hosted stack: Postgres + Redis + web + background worker.
+# Usage:
+#   cp .env.example .env   # then fill in secrets
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# To use Supabase/managed Postgres instead of the bundled one, drop the
+# `postgres` service and point DATABASE_URL/DIRECT_URL at your provider.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-freeway}
+    volumes:
+      - bc_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: apply migrations before the app starts.
+  migrate:
+    build: .
+    command: npx prisma migrate deploy
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build: .
+    command: npm run start
+    env_file: .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: npm run worker:once
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  bc_pgdata:

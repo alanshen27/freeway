@@ -1,0 +1,74 @@
+@import "highlight.js/styles/github-dark.min.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Corporate B2B palette: slate neutrals + indigo accent. */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%; /* slate-900 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%; /* slate-100 */
+    --muted-foreground: 215 16% 47%; /* slate-500 */
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --accent: 243 75% 59%; /* indigo-600 */
+    --accent-foreground: 0 0% 100%;
+
+    --primary: 243 75% 59%; /* #4f46e5 */
+    --primary-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%; /* slate-200 */
+    --input: 214 32% 91%;
+    --ring: 243 75% 59%;
+
+    --radius: 0.625rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+@layer components {
+  .soft-card {
+    @apply rounded-xl border border-border bg-card shadow-card;
+  }
+
+  /* Syntax highlighting (rehype-highlight / highlight.js) */
+  .hljs-code {
+    @apply my-4 overflow-hidden rounded-lg border border-slate-700/50;
+  }
+  .hljs-code pre {
+    @apply m-0 overflow-x-auto p-0;
+  }
+  .hljs-code code.hljs {
+    @apply block bg-[#1e293b] p-4 font-mono text-[0.8125rem] leading-relaxed;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

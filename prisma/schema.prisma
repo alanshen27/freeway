@@ -1,0 +1,285 @@
+// Freeway — AI-generated personalized learning paths.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum CourseCategory {
+  SOFTWARE_ENGINEERING
+  MECHANICAL_ENGINEERING
+  AI_ENGINEERING
+  MATHEMATICS
+  PHYSICS
+  GENERAL
+}
+
+enum CourseStatus {
+  DRAFT
+  GENERATING
+  READY
+  FAILED
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum SectionType {
+  READING // markdown document with multiple images
+  VIDEO // explainer video + ElevenLabs voiceover
+  WORKSHEET // structured practice document (markdown)
+  QUESTIONS // review question set (MCQ batch)
+  EXERCISE // interactive exercise (links to Exercise row)
+}
+
+enum ExerciseType {
+  CODING
+  CIRCUIT
+  VISUAL
+  MCQ
+  GRADED_TEXT
+  ORDERING
+  FILL_BLANK
+  MATCHING
+  VIDEO_QUESTION
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  PASSED
+  FAILED
+}
+
+enum AssetStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+model User {
+  id         String   @id @default(cuid())
+  supabaseId String?  @unique
+  name       String
+  email      String?  @unique
+  avatarUrl  String?
+  onboarded  Boolean  @default(false)
+  xp         Int      @default(0)
+  streak     Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  interests  UserInterest[]
+  onboarding OnboardingResponse[]
+  courses    Course[]
+  attempts   ExerciseAttempt[]
+  threads    ForumThread[]
+  posts      ForumPost[]
+  jobs       GenerationJob[]
+  sectionProgress SectionProgress[]
+}
+
+model Interest {
+  id       String         @id @default(cuid())
+  slug     String         @unique
+  label    String
+  category CourseCategory @default(GENERAL)
+  blurb    String?
+  users    UserInterest[]
+}
+
+model UserInterest {
+  userId     String
+  interestId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  @@id([userId, interestId])
+}
+
+model OnboardingResponse {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  CourseCategory
+  prompt    String
+  answer    String
+  signal    Json?
+  createdAt DateTime       @default(now())
+}
+
+model Course {
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  ownerId        String
+  owner          User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title          String
+  summary        String
+  category       CourseCategory @default(GENERAL)
+  level          String         @default("Beginner")
+  status         CourseStatus   @default(DRAFT)
+  coverColorFrom String         @default("#4f46e5")
+  coverColorTo   String         @default("#6366f1")
+  coverImageUrl  String?
+  progress       Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  subjects  Subject[]
+  exercises Exercise[]
+  threads   ForumThread[]
+  jobs      GenerationJob[]
+}
+
+// Top-level topic area within a course (orchestrator output).
+model Subject {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title    String
+  summary  String
+  goals    String[] @default([])
+  order    Int    @default(0)
+  imageUrl String?
+
+  lessons Lesson[]
+}
+
+model Lesson {
+  id        String  @id @default(cuid())
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  title     String
+  summary   String
+  order     Int     @default(0)
+  completed Boolean @default(false)
+  imageUrl  String?
+
+  sections  LessonSection[]
+  videos    Video[]
+  exercises Exercise[]
+}
+
+// Ordered content within a lesson: reading, video, worksheet, questions, exercise.
+model LessonSection {
+  id       String      @id @default(cuid())
+  lessonId String
+  lesson   Lesson      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  type     SectionType
+  title    String?
+  order    Int         @default(0)
+  // READING/WORKSHEET -> { markdown, images: [{url, alt, caption, query}] }
+  // VIDEO -> { videoId }
+  // QUESTIONS -> { items: [{question, choices, answerIndex, explanation}] }
+  // EXERCISE -> { exerciseId }
+  data     Json
+
+  progress SectionProgress[]
+}
+
+model SectionProgress {
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sectionId   String
+  section     LessonSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  completedAt DateTime      @default(now())
+
+  @@id([userId, sectionId])
+}
+
+model Video {
+  id          String      @id @default(cuid())
+  lessonId    String
+  lesson      Lesson      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title       String
+  sceneScript String?     @db.Text
+  narration   String?     @db.Text
+  audioUrl    String? // ElevenLabs voiceover MP3
+  status      AssetStatus @default(PENDING)
+  url         String? // Manim MP4 (visual track)
+  posterUrl   String?
+  durationSec Int         @default(0)
+  questions   Json?
+}
+
+model Exercise {
+  id         String       @id @default(cuid())
+  courseId   String
+  course     Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessonId   String?
+  lesson     Lesson?      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  type       ExerciseType
+  title      String
+  prompt     String       @db.Text
+  config     Json
+  solution   Json?
+  difficulty String       @default("intro")
+
+  attempts ExerciseAttempt[]
+  threads  ForumThread[]
+}
+
+model ExerciseAttempt {
+  id         String        @id @default(cuid())
+  exerciseId String
+  exercise   Exercise      @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answer     Json
+  status     AttemptStatus @default(SUBMITTED)
+  score      Int?
+  feedback   String?       @db.Text
+  createdAt  DateTime      @default(now())
+}
+
+model ForumThread {
+  id         String    @id @default(cuid())
+  courseId   String
+  course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  title      String
+  body       String    @db.Text
+  exerciseId String?
+  exercise   Exercise? @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+
+  posts ForumPost[]
+}
+
+model ForumPost {
+  id        String      @id @default(cuid())
+  threadId  String
+  thread    ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String      @db.Text
+  isAI      Boolean     @default(false)
+  createdAt DateTime    @default(now())
+}
+
+model GenerationJob {
+  id        String    @id @default(cuid())
+  courseId  String?
+  course    Course?   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String    @default("course")
+  status    JobStatus @default(QUEUED)
+  progress  Int       @default(0)
+  step      String    @default("queued")
+  logs      Json      @default("[]")
+  result    Json?
+  error     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
