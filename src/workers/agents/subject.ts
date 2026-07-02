@@ -1,5 +1,9 @@
 import { llmJSON } from "@/lib/llm";
-import { subjectBlueprintSchema, type SubjectBlueprint } from "@/lib/schemas";
+import {
+  subjectBlueprintSchema,
+  tasterSubjectBlueprintSchema,
+  type SubjectBlueprint,
+} from "@/lib/schemas";
 
 type PlanInput = {
   courseTitle: string;
@@ -8,6 +12,7 @@ type PlanInput = {
   goals: string[];
   category: string;
   level: string;
+  isTaster?: boolean;
 };
 
 /**
@@ -15,6 +20,30 @@ type PlanInput = {
  * intro reading/video → worksheets → supplemental reading/video → more worksheets.
  */
 export async function planSubjectLessons(input: PlanInput): Promise<SubjectBlueprint> {
+  if (input.isTaster) {
+    return llmJSON({
+      task: "planSubjectLessons",
+      schema: tasterSubjectBlueprintSchema,
+      system:
+        "You plan a short taster lesson for a professional LMS. Keep it compact but engaging. " +
+        "Respond with strict JSON only.",
+      prompt: `Course: ${input.courseTitle}
+Subject: ${input.subjectTitle} — ${input.subjectSummary}
+Goals: ${input.goals.join("; ")}
+Category: ${input.category}, level: ${input.level}
+
+Return JSON: { lessons: [{ title, summary, sections: [{ type, title?, exerciseType? }] }] }.
+
+Use exactly 1 lesson with 3-4 sections. Typical flow:
+1. READING or VIDEO — hook the learner with the core idea
+2. WORKSHEET — one short guided practice
+3. QUESTIONS or EXERCISE — quick check or hands-on challenge
+
+Keep it lightweight — this is a taster, not a full module.`,
+      mock: () => mockTasterSubjectBlueprint(input),
+    });
+  }
+
   return llmJSON({
     task: "planSubjectLessons",
     schema: subjectBlueprintSchema,
@@ -80,6 +109,27 @@ function mockSubjectBlueprint(input: PlanInput): SubjectBlueprint {
           { type: "READING", title: "Supplemental notes" },
           { type: "WORKSHEET", title: "Scenario B" },
           { type: "EXERCISE", title: "Challenge", exerciseType: ex as "CODING" },
+        ],
+      },
+    ],
+  };
+}
+
+function mockTasterSubjectBlueprint(input: PlanInput): SubjectBlueprint {
+  const ex =
+    input.category === "SOFTWARE_ENGINEERING" || input.category === "AI_ENGINEERING"
+      ? "CODING"
+      : "MCQ";
+
+  return {
+    lessons: [
+      {
+        title: `Sample: ${input.subjectTitle}`,
+        summary: `A quick introduction to ${input.subjectTitle}.`,
+        sections: [
+          { type: "READING", title: "Core idea" },
+          { type: "WORKSHEET", title: "Try it yourself" },
+          { type: "EXERCISE", title: "Quick challenge", exerciseType: ex as "CODING" },
         ],
       },
     ],

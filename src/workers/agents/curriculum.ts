@@ -1,5 +1,9 @@
 import { llmJSON, planCourseFallback } from "@/lib/llm";
-import { courseBlueprintSchema, type CourseBlueprint } from "@/lib/schemas";
+import {
+  courseBlueprintSchema,
+  tasterCourseBlueprintSchema,
+  type CourseBlueprint,
+} from "@/lib/schemas";
 
 type PlanInput = {
   topic: string;
@@ -7,6 +11,7 @@ type PlanInput = {
   level: string;
   interests: string[];
   responses: { prompt: string; answer: string }[];
+  isTaster?: boolean;
 };
 
 /**
@@ -17,6 +22,25 @@ export async function planCourse(input: PlanInput): Promise<CourseBlueprint> {
   const responseText = input.responses
     .map((r) => `Q: ${r.prompt}\nA: ${r.answer}`)
     .join("\n");
+
+  if (input.isTaster) {
+    return llmJSON({
+      task: "planCourse",
+      fallback: planCourseFallback,
+      schema: tasterCourseBlueprintSchema,
+      system:
+        "You are a curriculum architect for professional engineering education. " +
+        "Design a short taster course that gives learners a compelling sample of a track. " +
+        "Respond with strict JSON only.",
+      prompt: `Design a taster course on "${input.topic}" (${input.category}, level ${input.level}).
+Learner interests: ${input.interests.join(", ") || "general"}.
+Preliminary answers:\n${responseText || "(none)"}
+
+Return JSON: { title, summary, level, subjects: [{ title, summary, goals: string[] }] }.
+Use exactly 1 subject with 2-3 concrete learning goals. Keep the scope small — this is a preview, not a full program.`,
+      mock: () => mockTasterCourseBlueprint(input),
+    });
+  }
 
   return llmJSON({
     task: "planCourse",
@@ -52,6 +76,22 @@ function mockCourseBlueprint(input: PlanInput): CourseBlueprint {
         title: `Applied practice`,
         summary: `Hands-on work with ${t}.`,
         goals: ["Complete guided exercises", "Solve realistic problems", "Reflect on trade-offs"],
+      },
+    ],
+  };
+}
+
+function mockTasterCourseBlueprint(input: PlanInput): CourseBlueprint {
+  const t = input.topic;
+  return {
+    title: `${t} — Taster`,
+    summary: `A quick sample of ${t} to see if this track fits you.`,
+    level: input.level,
+    subjects: [
+      {
+        title: `First taste of ${t}`,
+        summary: `A compact introduction to the core ideas.`,
+        goals: ["Grasp the main idea", "Try one hands-on exercise"],
       },
     ],
   };

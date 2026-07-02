@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 export function ReplyBox({ threadId }: { threadId: string }) {
   const router = useRouter();
   const [body, setBody] = useState("");
-  const [askAI, setAskAI] = useState(true);
+  const [askAI, setAskAI] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function send() {

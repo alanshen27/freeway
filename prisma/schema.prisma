@@ -158,6 +158,8 @@ model Course {
   progress       Int            @default(0)
   /** Target pace chosen at creation (4 = 1 month … 52 = 1 year). */
   durationWeeks  Int            @default(8)
+  /** Short sample course: one subject, one lesson, lighter assignments. */
+  isTaster       Boolean        @default(false)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 

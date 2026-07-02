@@ -97,6 +97,21 @@ export async function createAssignment(opts: {
 export async function generateDefaultAssignments(courseId: string, userId: string) {
   const course = await prisma.course.findUnique({ where: { id: courseId } });
   if (!course) return;
+
+  if (course.isTaster) {
+    try {
+      await createAssignment({
+        courseId,
+        userId,
+        type: "QUIZ",
+        dueAt: daysFromNow(7),
+      });
+    } catch (err) {
+      log.error("taster quiz failed", { courseId }, err);
+    }
+    return;
+  }
+
   const days = course.durationWeeks * 7;
 
   const plan: { type: AssignmentType; dueInDays: number }[] = [

@@ -167,6 +167,7 @@ async function runCourseGenerationInner(
       level: course.level,
       interests: course.owner.interests.map((i) => i.interest.label),
       responses: responses.map((r) => ({ prompt: r.prompt, answer: r.answer })),
+      isTaster: course.isTaster,
     };
 
     let blueprint: CourseBlueprint;
@@ -191,6 +192,7 @@ async function runCourseGenerationInner(
               goals: s.goals,
               category: course.category,
               level: blueprint.level,
+              isTaster: course.isTaster,
             })
           )
         )

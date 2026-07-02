@@ -11,6 +11,7 @@ import type { CourseCategory } from "@prisma/client";
 const schema = z.object({
   careerSlug: z.string(),
   durationWeeks: z.number().int().min(1).max(104).default(8),
+  isTaster: z.boolean().default(false),
   responses: z.array(z.object({ prompt: z.string(), answer: z.string() })),
 });
 
@@ -69,7 +70,8 @@ export async function POST(req: Request) {
       status: "GENERATING",
       coverColorFrom: career.from,
       coverColorTo: career.to,
-      durationWeeks: parsed.data.durationWeeks,
+      durationWeeks: parsed.data.isTaster ? 1 : parsed.data.durationWeeks,
+      isTaster: parsed.data.isTaster,
     },
   });
 

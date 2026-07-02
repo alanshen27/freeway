@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Sparkles, Paperclip } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { Markdown } from "@/components/Markdown";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { timeAgo, initials } from "@/lib/utils";
@@ -44,9 +45,9 @@ export default async function ThreadPage({
               · {timeAgo(thread.createdAt)}
             </span>
           </div>
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">
-            {thread.body}
-          </p>
+          <div className="mt-3">
+            <Markdown source={thread.body} />
+          </div>
           {thread.exercise && (
             <Link
               href={
@@ -89,9 +90,9 @@ export default async function ThreadPage({
                         {timeAgo(p.createdAt)}
                       </span>
                     </div>
-                    <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed">
-                      {p.body}
-                    </p>
+                    <div className="mt-1.5">
+                      <Markdown source={p.body} />
+                    </div>
                   </div>
                 </ListRow>
               ))}

@@ -175,6 +175,7 @@ export default async function CoursesPage({
                   status: c.status,
                   level: c.level,
                   category: c.category,
+                  isTaster: c.isTaster,
                   coverImageUrl: c.coverImageUrl,
                 };
               })}

@@ -16,6 +16,7 @@ type Props = {
   status?: string;
   level?: string;
   category?: string;
+  isTaster?: boolean;
   coverImageUrl?: string | null;
   /** Live generation job progress (polled on courses list). */
   generationProgress?: number;
@@ -35,6 +36,7 @@ export function CourseProgressCard({
   status,
   level,
   category,
+  isTaster,
   coverImageUrl,
   generationProgress,
   generationMessage,
@@ -93,8 +95,11 @@ export function CourseProgressCard({
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
             {title}
           </h3>
-          {status === "GENERATING" && <Badge variant="warn">Generating</Badge>}
-          {status === "FAILED" && <Badge variant="danger">Failed</Badge>}
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+            {isTaster && <Badge variant="outline">Taster</Badge>}
+            {status === "GENERATING" && <Badge variant="warn">Generating</Badge>}
+            {status === "FAILED" && <Badge variant="danger">Failed</Badge>}
+          </div>
         </div>
         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
           {summary}

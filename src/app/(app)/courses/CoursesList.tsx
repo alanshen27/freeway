@@ -15,6 +15,7 @@ type C = {
   status: string;
   level: string;
   category: string;
+  isTaster?: boolean;
   coverImageUrl?: string | null;
 };
 
@@ -159,6 +160,7 @@ export function CoursesList({
                 status={c.status}
                 level={c.level}
                 category={c.category}
+                isTaster={c.isTaster}
                 coverImageUrl={c.coverImageUrl}
                 generationProgress={live?.progress}
                 generationMessage={live?.message}

@@ -12,6 +12,8 @@ import {
   Atom,
   FlaskConical,
   Layers,
+  GraduationCap,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CAREERS, prelimFor, type CareerOption } from "@/lib/catalog";
@@ -28,6 +30,23 @@ const DURATIONS = [
   { weeks: 52, label: "1 year", blurb: "Marathon", detail: "Light weekly pace" },
 ] as const;
 
+const COURSE_FORMATS = [
+  {
+    id: "full" as const,
+    label: "Full course",
+    blurb: "Complete program",
+    detail: "Multiple subjects, lessons, exercises, and assignments paced to your schedule",
+    icon: GraduationCap,
+  },
+  {
+    id: "taster" as const,
+    label: "Taster",
+    blurb: "Quick sample",
+    detail: "One compact lesson to explore the track — about a week, no long commitment",
+    icon: Zap,
+  },
+];
+
 const CAREER_ICONS: Record<string, LucideIcon> = {
   "software-engineering": BookOpen,
   "ai-engineering": Brain,
@@ -38,7 +57,7 @@ const CAREER_ICONS: Record<string, LucideIcon> = {
 };
 
 function StepDots({ step }: { step: 1 | 2 | 3 }) {
-  const labels = ["Track", "Pace", "Tailor"];
+  const labels = ["Track", "Plan", "Tailor"];
   return (
     <div className="mb-6 flex items-center gap-2">
       {labels.map((label, i) => {
@@ -132,6 +151,7 @@ function AddFlow() {
   const first = params.get("first");
   const [step, setStep] = useState<"pick" | "duration" | "questions">("pick");
   const [career, setCareer] = useState<(typeof CAREERS)[number] | null>(null);
+  const [courseFormat, setCourseFormat] = useState<"full" | "taster">("full");
   const [durationWeeks, setDurationWeeks] = useState<number>(8);
   const [answers, setAnswers] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -150,6 +170,7 @@ function AddFlow() {
         body: JSON.stringify({
           careerSlug: career.slug,
           durationWeeks,
+          isTaster: courseFormat === "taster",
           responses: questions.map((q, i) => ({
             prompt: q,
             answer: answers[i] ?? "",
@@ -169,22 +190,28 @@ function AddFlow() {
   }
 
   if (step === "duration" && career) {
+    const isTaster = courseFormat === "taster";
     return (
       <Page wide>
         <StepDots step={2} />
         <PageTitle
           eyebrow="Create"
-          title="How long do you want to spend?"
-          description={`We'll pace ${career.title} — and assignment due dates — to fit your schedule`}
+          title="How do you want to learn?"
+          description={
+            isTaster
+              ? `We'll build a short sample of ${career.title} so you can try the track before committing`
+              : `We'll pace ${career.title} — and assignment due dates — to fit your schedule`
+          }
         />
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          {DURATIONS.map((d) => {
-            const selected = durationWeeks === d.weeks;
+          {COURSE_FORMATS.map((f) => {
+            const selected = courseFormat === f.id;
+            const Icon = f.icon;
             return (
               <button
-                key={d.weeks}
+                key={f.id}
                 type="button"
-                onClick={() => setDurationWeeks(d.weeks)}
+                onClick={() => setCourseFormat(f.id)}
                 className={cn(
                   "relative flex flex-col rounded-2xl border p-5 text-left transition-all",
                   selected
@@ -192,7 +219,7 @@ function AddFlow() {
                     : "border-border bg-white hover:border-slate-300 hover:shadow-sm"
                 )}
               >
-                {d.weeks === 8 && (
+                {f.id === "full" && (
                   <span className="absolute right-3 top-3 rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
                     Popular
                   </span>
@@ -206,20 +233,17 @@ function AddFlow() {
                         : "bg-slate-100 text-slate-500"
                     )}
                   >
-                    <Clock className="size-4" />
+                    <Icon className="size-4" />
                   </span>
                   <div className="min-w-0">
                     <span className="block text-lg font-semibold text-foreground">
-                      {d.label}
+                      {f.label}
                     </span>
                     <span className="mt-0.5 block text-xs font-medium text-brand-600">
-                      {d.blurb}
+                      {f.blurb}
                     </span>
                     <span className="mt-1 block text-xs text-muted-foreground">
-                      {d.detail}
-                    </span>
-                    <span className="mt-2 block text-[11px] text-muted-foreground/80">
-                      {d.weeks} weeks · ~{Math.round(d.weeks * 5)} study days
+                      {f.detail}
                     </span>
                   </div>
                 </div>
@@ -227,6 +251,82 @@ function AddFlow() {
             );
           })}
         </div>
+
+        {!isTaster ? (
+          <>
+            <p className="mt-8 text-sm font-semibold text-foreground">
+              How long do you want to spend?
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {DURATIONS.map((d) => {
+                const selected = durationWeeks === d.weeks;
+                return (
+                  <button
+                    key={d.weeks}
+                    type="button"
+                    onClick={() => setDurationWeeks(d.weeks)}
+                    className={cn(
+                      "relative flex flex-col rounded-2xl border p-5 text-left transition-all",
+                      selected
+                        ? "border-primary bg-brand-50/50 shadow-sm ring-2 ring-primary/30"
+                        : "border-border bg-white hover:border-slate-300 hover:shadow-sm"
+                    )}
+                  >
+                    {d.weeks === 8 && (
+                      <span className="absolute right-3 top-3 rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
+                        Popular
+                      </span>
+                    )}
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          "flex size-10 shrink-0 items-center justify-center rounded-xl",
+                          selected
+                            ? "bg-primary text-white"
+                            : "bg-slate-100 text-slate-500"
+                        )}
+                      >
+                        <Clock className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <span className="block text-lg font-semibold text-foreground">
+                          {d.label}
+                        </span>
+                        <span className="mt-0.5 block text-xs font-medium text-brand-600">
+                          {d.blurb}
+                        </span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {d.detail}
+                        </span>
+                        <span className="mt-2 block text-[11px] text-muted-foreground/80">
+                          {d.weeks} weeks · ~{Math.round(d.weeks * 5)} study days
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="mt-6 rounded-2xl border border-border bg-white p-5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                <Clock className="size-4" />
+              </span>
+              <div>
+                <span className="block text-sm font-semibold text-foreground">
+                  About a week · 1 lesson
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                  A taster includes one subject with a short reading, practice, and a quick
+                  challenge — enough to see if you want the full course.
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button size="lg" onClick={() => setStep("questions")}>
             Continue
@@ -246,7 +346,7 @@ function AddFlow() {
         <StepDots step={3} />
         <PageTitle
           eyebrow="Create"
-          title="Tailor your course"
+          title={courseFormat === "taster" ? "Tailor your taster" : "Tailor your course"}
           description={`A few details help us personalize ${career.title}`}
         />
         <div className="mt-6 space-y-5">
@@ -274,7 +374,11 @@ function AddFlow() {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button size="lg" disabled={submitting} onClick={generate}>
             <Sparkles className="size-4" />
-            {submitting ? "Generating…" : "Generate course"}
+            {submitting
+              ? "Generating…"
+              : courseFormat === "taster"
+                ? "Generate taster"
+                : "Generate course"}
           </Button>
           <Button variant="ghost" onClick={() => setStep("duration")}>
             Back
@@ -302,6 +406,7 @@ function AddFlow() {
             career={c}
             onSelect={() => {
               setCareer(c);
+              setCourseFormat("full");
               setAnswers([]);
               setStep("duration");
             }}

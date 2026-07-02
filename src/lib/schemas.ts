@@ -37,6 +37,22 @@ export const courseBlueprintSchema = z.object({
 });
 export type CourseBlueprint = z.infer<typeof courseBlueprintSchema>;
 
+export const tasterCourseBlueprintSchema = z.object({
+  title: z.string(),
+  summary: z.string(),
+  level: z.string(),
+  subjects: z
+    .array(
+      z.object({
+        title: z.string(),
+        summary: z.string(),
+        goals: z.array(z.string()).min(1).max(3),
+      })
+    )
+    .length(1),
+});
+export type TasterCourseBlueprint = z.infer<typeof tasterCourseBlueprintSchema>;
+
 export const subjectBlueprintSchema = z.object({
   lessons: z
     .array(
@@ -59,6 +75,28 @@ export const subjectBlueprintSchema = z.object({
     .max(5),
 });
 export type SubjectBlueprint = z.infer<typeof subjectBlueprintSchema>;
+
+export const tasterSubjectBlueprintSchema = z.object({
+  lessons: z
+    .array(
+      z.object({
+        title: z.string(),
+        summary: z.string(),
+        sections: z
+          .array(
+            z.object({
+              type: sectionPlanEnum,
+              title: z.string().optional(),
+              exerciseType: exerciseTypeEnum.optional(),
+            })
+          )
+          .min(3)
+          .max(4),
+      })
+    )
+    .length(1),
+});
+export type TasterSubjectBlueprint = z.infer<typeof tasterSubjectBlueprintSchema>;
 
 export const imageSpecSchema = z.object({
   slot: z.string(),
