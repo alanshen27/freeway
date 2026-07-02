@@ -29,10 +29,21 @@ export default async function CourseForumPage({
 
   return (
     <div>
-      <PageHeader title="Course forum" />
+      <PageHeader
+        title={course.title}
+        eyebrow="Forum"
+        backHref="/feed"
+        action={
+          <Button asChild size="sm" className="hidden sm:inline-flex">
+            <Link href={`/feed/${courseId}/new`}>
+              <Plus className="size-4" />
+              New
+            </Link>
+          </Button>
+        }
+      />
       <Page>
-        <p className="mb-4 text-sm text-muted-foreground">{course.title}</p>
-        <Button asChild size="sm">
+        <Button asChild size="sm" className="mb-4 sm:hidden">
           <Link href={`/feed/${courseId}/new`}>
             <Plus className="size-4" />
             New discussion

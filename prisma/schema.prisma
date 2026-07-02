@@ -51,6 +51,13 @@ enum ExerciseType {
   FILL_BLANK
   MATCHING
   VIDEO_QUESTION
+  NUMERIC // numeric answer with tolerance + units
+  FLASHCARDS // self-graded flip-card deck
+  CATEGORIZE // sort items into buckets
+  CODE_OUTPUT // predict what a code snippet prints
+  LOGIC_CIRCUIT // build a gate circuit that matches a truth table
+  GEOMETRY // drag points on a grid to satisfy geometric constraints
+  FREE_BODY // attach force arrows to a body at the correct angles
 }
 
 enum AttemptStatus {
@@ -63,6 +70,18 @@ enum AttemptStatus {
 enum AssetStatus {
   PENDING
   PROCESSING
+  READY
+  FAILED
+}
+
+enum AssignmentType {
+  PRACTICE
+  PROJECT
+  QUIZ
+}
+
+enum AssignmentStatus {
+  GENERATING
   READY
   FAILED
 }
@@ -86,6 +105,7 @@ model User {
   posts      ForumPost[]
   jobs       GenerationJob[]
   sectionProgress SectionProgress[]
+  assignments Assignment[]
 }
 
 model Interest {
@@ -131,13 +151,16 @@ model Course {
   coverColorTo   String         @default("#6366f1")
   coverImageUrl  String?
   progress       Int            @default(0)
+  /** Target pace chosen at creation (4 = 1 month … 52 = 1 year). */
+  durationWeeks  Int            @default(8)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  subjects  Subject[]
-  exercises Exercise[]
-  threads   ForumThread[]
-  jobs      GenerationJob[]
+  subjects    Subject[]
+  exercises   Exercise[]
+  threads     ForumThread[]
+  jobs        GenerationJob[]
+  assignments Assignment[]
 }
 
 // Top-level topic area within a course (orchestrator output).
@@ -265,6 +288,41 @@ model ForumPost {
   body      String      @db.Text
   isAI      Boolean     @default(false)
   createdAt DateTime    @default(now())
+}
+
+// Course-level work item: practice set, project, or quiz — AI-generated,
+// with a due date and optional milestones.
+model Assignment {
+  id           String           @id @default(cuid())
+  courseId     String
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         AssignmentType
+  status       AssignmentStatus @default(GENERATING)
+  title        String
+  instructions String           @default("") @db.Text
+  dueAt        DateTime?
+  completedAt  DateTime?
+  // QUIZ -> { items: [{question, choices, answerIndex, explanation}], result?: {score, total, submittedAt} }
+  data         Json?
+  // AI assistant conversation: [{role, content, at}]
+  chatLog      Json             @default("[]")
+  error        String?
+  createdAt    DateTime         @default(now())
+
+  milestones AssignmentMilestone[]
+}
+
+model AssignmentMilestone {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  title        String
+  description  String     @default("")
+  order        Int        @default(0)
+  dueAt        DateTime?
+  completedAt  DateTime?
 }
 
 model GenerationJob {

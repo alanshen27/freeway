@@ -9,6 +9,13 @@ const exerciseTypeEnum = z.enum([
   "ORDERING",
   "FILL_BLANK",
   "MATCHING",
+  "NUMERIC",
+  "FLASHCARDS",
+  "CATEGORIZE",
+  "CODE_OUTPUT",
+  "LOGIC_CIRCUIT",
+  "GEOMETRY",
+  "FREE_BODY",
 ]);
 
 const sectionPlanEnum = z.enum(["READING", "VIDEO", "WORKSHEET", "QUESTIONS", "EXERCISE"]);
@@ -132,6 +139,43 @@ export const exerciseSchema = z.object({
   solution: z.any().optional(),
 });
 export type ExerciseSpec = z.infer<typeof exerciseSchema>;
+
+export const quizItemSchema = z.object({
+  question: z.string(),
+  choices: z.array(z.string()).min(2),
+  answerIndex: z.number().int().min(0),
+  explanation: z.string(),
+});
+export type QuizItem = z.infer<typeof quizItemSchema>;
+
+export const assignmentSpecSchema = z.object({
+  title: z.string(),
+  /** Markdown brief: context, requirements, deliverables, tips. */
+  instructions: z.string(),
+  milestones: z
+    .array(
+      z.object({
+        title: z.string(),
+        description: z.string().default(""),
+      })
+    )
+    .max(8)
+    .default([]),
+  quiz: z.array(quizItemSchema).max(12).default([]),
+});
+export type AssignmentSpec = z.infer<typeof assignmentSpecSchema>;
+
+/** Shape of Assignment.data for quizzes. */
+export type AssignmentQuizData = {
+  items: QuizItem[];
+  result?: { score: number; total: number; answers: number[]; submittedAt: string };
+};
+
+export type AssignmentChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  at: string;
+};
 
 export type ReadingSectionData = {
   markdown: string;

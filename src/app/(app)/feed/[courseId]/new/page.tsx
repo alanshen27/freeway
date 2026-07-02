@@ -31,7 +31,7 @@ function NewThread({ courseId }: { courseId: string }) {
 
   return (
     <div>
-      <PageHeader title="New discussion" />
+      <PageHeader title="New discussion" eyebrow="Forum" backHref={`/feed/${courseId}`} />
       <Page>
         <ContentBlock>
           {exerciseId && (

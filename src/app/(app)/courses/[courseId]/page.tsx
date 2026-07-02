@@ -1,12 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, MessagesSquare, BookOpen } from "lucide-react";
+import {
+  ChevronRight,
+  MessagesSquare,
+  BookOpen,
+  Play,
+  CheckCircle2,
+  Layers,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
+import { getCompletedSectionIds, completionPct } from "@/lib/section-progress";
 import { PageHeader } from "@/components/PageHeader";
 import { RegenerateCourseButton } from "@/components/course/RegenerateCourseButton";
+import { DeleteCourseButton } from "@/components/course/DeleteCourseButton";
+import { GenerationProgress } from "@/components/course/GenerationProgress";
 import { CoverImage } from "@/components/lesson/CoverImage";
 import { Badge } from "@/components/ui/badge";
-import { Page, ListPanel, ListRow, Breadcrumbs } from "@/components/layout/Page";
+import { Page, Breadcrumbs } from "@/components/layout/Page";
+import { AssignmentRow } from "@/components/assignment/AssignmentRow";
+import { NewAssignmentForm } from "@/components/assignment/NewAssignmentForm";
 
 export const dynamic = "force-dynamic";
 
@@ -16,21 +29,58 @@ export default async function CoursePage({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
+  const user = await getCurrentUser();
   const course = await prisma.course.findUnique({
     where: { id: courseId },
     include: {
       subjects: {
         orderBy: { order: "asc" },
-        include: { _count: { select: { lessons: true } } },
+        include: {
+          lessons: {
+            orderBy: { order: "asc" },
+            include: { sections: { select: { id: true }, orderBy: { order: "asc" } } },
+          },
+        },
       },
     },
   });
   if (!course) notFound();
 
+  const assignments = user
+    ? await prisma.assignment.findMany({
+        where: { courseId, userId: user.id },
+        orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+      })
+    : [];
+
+  const activeJob =
+    course.status === "GENERATING"
+      ? await prisma.generationJob.findFirst({
+          where: { courseId, status: { in: ["QUEUED", "RUNNING"] } },
+          orderBy: { createdAt: "desc" },
+          select: { id: true },
+        })
+      : null;
+
+  const allSectionIds = course.subjects.flatMap((s) =>
+    s.lessons.flatMap((l) => l.sections.map((sec) => sec.id))
+  );
+  const completed = await getCompletedSectionIds(user?.id, allSectionIds);
+
+  const courseDone = allSectionIds.filter((id) => completed.has(id)).length;
+  const coursePct = completionPct({ done: courseDone, total: allSectionIds.length });
+  const totalLessons = course.subjects.reduce((n, s) => n + s.lessons.length, 0);
+
+  // First lesson with an incomplete section, for "Continue".
+  const nextLesson = course.subjects
+    .flatMap((s) => s.lessons)
+    .find((l) => l.sections.some((sec) => !completed.has(sec.id)));
+
   return (
     <div>
       <PageHeader
-        title={course.title}
+        toolbar
+        backHref="/courses"
         action={
           <div className="flex items-center gap-2">
             <RegenerateCourseButton
@@ -44,30 +94,99 @@ export default async function CoursePage({
             >
               <MessagesSquare className="size-5" />
             </Link>
+            <DeleteCourseButton courseId={course.id} />
           </div>
         }
       />
 
       <Page wide>
-        <Breadcrumbs items={[{ label: "Courses", href: "/courses" }, { label: course.title }]} />
+        <Breadcrumbs
+          items={[{ label: "Courses", href: "/courses" }, { label: course.title }]}
+        />
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Badge variant="primary">{course.level}</Badge>
-          <Badge variant="outline">{course.category.replace(/_/g, " ")}</Badge>
-          {course.status !== "READY" && (
-            <Badge variant="warn">{course.status.toLowerCase()}</Badge>
+        <section className="relative mt-2 overflow-hidden rounded-2xl bg-course-gradient text-white shadow-card">
+          {course.coverImageUrl && (
+            <>
+              <CoverImage
+                src={course.coverImageUrl}
+                alt=""
+                className="absolute inset-0 size-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/65 to-slate-950/30" />
+            </>
           )}
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">{course.summary}</p>
+          <div className="relative p-5 sm:p-8">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="bg-white/15 text-white ring-white/25">
+                {course.level}
+              </Badge>
+              <Badge className="bg-white/15 text-white ring-white/25">
+                {course.category.replace(/_/g, " ")}
+              </Badge>
+              {course.status !== "READY" && (
+                <Badge variant="warn">{course.status.toLowerCase()}</Badge>
+              )}
+            </div>
+            <h1 className="mt-3 max-w-2xl text-xl font-semibold tracking-tight sm:text-2xl">
+              {course.title}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/80">
+              {course.summary}
+            </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-white/75">
+              <span className="flex items-center gap-1.5">
+                <Layers className="size-3.5" />
+                {course.subjects.length} modules
+              </span>
+              <span className="flex items-center gap-1.5">
+                <BookOpen className="size-3.5" />
+                {totalLessons} lessons
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="size-3.5" />
+                {courseDone}/{allSectionIds.length} steps complete
+              </span>
+            </div>
+
+            {allSectionIds.length > 0 && (
+              <div className="mt-4 flex max-w-md items-center gap-3">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/20">
+                  <div
+                    className="h-full rounded-full bg-white"
+                    style={{ width: `${coursePct}%` }}
+                  />
+                </div>
+                <span className="text-xs font-semibold">{coursePct}%</span>
+              </div>
+            )}
+
+            {nextLesson && (
+              <Link
+                href={`/lessons/${nextLesson.id}/continue`}
+                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-white/90"
+              >
+                <Play className="size-4" />
+                {courseDone === 0 ? "Start course" : "Continue learning"}
+              </Link>
+            )}
+          </div>
+        </section>
 
         {course.status === "GENERATING" && (
-          <p className="mt-4 text-sm text-muted-foreground">
-            This course is still being generated. Check back shortly.
-          </p>
+          <div className="mt-6">
+            {activeJob ? (
+              <GenerationProgress jobId={activeJob.id} courseId={course.id} />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                This course is still being generated. Check back shortly.
+              </p>
+            )}
+          </div>
         )}
 
         {course.status === "FAILED" && (
-          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-blush/30 bg-blush-soft px-4 py-3">
+          <div className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-blush/30 bg-blush-soft px-4 py-3">
             <p className="flex-1 text-sm text-blush">
               Generation didn&apos;t finish. Use Regenerate to run it again.
             </p>
@@ -75,36 +194,89 @@ export default async function CoursePage({
           </div>
         )}
 
+        {course.status === "READY" && (
+          <section className="mt-8">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                Assignments
+              </h2>
+              <NewAssignmentForm courseId={course.id} />
+            </div>
+            {assignments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No assignments yet — generate one to practice what you&apos;re learning.
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {assignments.map((a) => (
+                  <AssignmentRow key={a.id} assignment={a} />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
         {course.subjects.length > 0 && (
           <section className="mt-8">
-            <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Subjects
+            <h2 className="mb-4 text-sm font-semibold text-foreground">
+              Course content
             </h2>
-            <ListPanel flat>
-              {course.subjects.map((s) => (
-                <ListRow key={s.id} href={`/subjects/${s.id}`}>
-                  {s.imageUrl ? (
-                    <CoverImage
-                      src={s.imageUrl}
-                      alt={s.title}
-                      className="size-12 shrink-0 rounded-md object-cover"
-                    />
-                  ) : (
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
-                      <BookOpen className="size-5" />
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-medium">{s.title}</h3>
-                    <p className="line-clamp-2 text-sm text-muted-foreground">{s.summary}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {s._count.lessons} lessons
-                    </p>
-                  </div>
-                  <ChevronRight className="size-4 text-muted-foreground" />
-                </ListRow>
-              ))}
-            </ListPanel>
+            <div className="space-y-3">
+              {course.subjects.map((s, i) => {
+                const sectionIds = s.lessons.flatMap((l) =>
+                  l.sections.map((sec) => sec.id)
+                );
+                const done = sectionIds.filter((id) => completed.has(id)).length;
+                const pct = completionPct({ done, total: sectionIds.length });
+                const moduleComplete = sectionIds.length > 0 && done === sectionIds.length;
+
+                return (
+                  <Link
+                    key={s.id}
+                    href={`/subjects/${s.id}`}
+                    className="group flex items-center gap-4 rounded-xl border border-border bg-white p-4 shadow-card transition-all hover:border-brand-100 hover:shadow-md"
+                  >
+                    {s.imageUrl ? (
+                      <CoverImage
+                        src={s.imageUrl}
+                        alt={s.title}
+                        className="hidden size-16 shrink-0 rounded-lg object-cover sm:block"
+                      />
+                    ) : (
+                      <span className="hidden size-16 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 sm:flex">
+                        <BookOpen className="size-6" />
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Module {i + 1}
+                        {moduleComplete && (
+                          <CheckCircle2 className="ml-1.5 inline size-3.5 align-[-2px] text-mint" />
+                        )}
+                      </p>
+                      <h3 className="mt-0.5 truncate text-sm font-semibold text-foreground">
+                        {s.title}
+                      </h3>
+                      <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+                        {s.summary}
+                      </p>
+                      <div className="mt-2.5 flex items-center gap-3">
+                        <div className="h-1.5 w-full max-w-[10rem] overflow-hidden rounded-full bg-secondary">
+                          <div
+                            className="h-full rounded-full bg-primary"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="whitespace-nowrap text-xs text-muted-foreground">
+                          {s.lessons.length} lessons · {pct}%
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                );
+              })}
+            </div>
           </section>
         )}
       </Page>

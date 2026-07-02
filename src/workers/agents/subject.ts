@@ -42,7 +42,9 @@ Rules:
 - Alternate worksheets with short READING or VIDEO supplements — do not stack 4 worksheets with no media.
 - Use QUESTIONS for quick review; use EXERCISE (with exerciseType) for hands-on challenges.
 - Spread EXERCISE across lessons sparingly (not every lesson needs one).
-For EXERCISE sections set exerciseType from: CODING, CIRCUIT, VISUAL, MCQ, GRADED_TEXT, ORDERING, FILL_BLANK, MATCHING.`,
+For EXERCISE sections set exerciseType from: CODING, CIRCUIT, VISUAL, MCQ, GRADED_TEXT, ORDERING, FILL_BLANK, MATCHING, NUMERIC, FLASHCARDS, CATEGORIZE, CODE_OUTPUT, LOGIC_CIRCUIT, GEOMETRY, FREE_BODY.
+Prefer variety: NUMERIC for calculation-heavy topics, CODE_OUTPUT for programming topics, FLASHCARDS for terminology, CATEGORIZE for classification/taxonomy topics.
+Prefer the builder types where the domain fits: LOGIC_CIRCUIT for digital logic / boolean algebra / CS fundamentals, GEOMETRY for geometry / trigonometry / vectors / spatial math, FREE_BODY for mechanics, statics and physics force problems.`,
     mock: () => mockSubjectBlueprint(input),
   });
 }

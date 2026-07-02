@@ -1,6 +1,11 @@
 import vm from "node:vm";
 import { llmJSON } from "./llm";
 import { z } from "zod";
+import {
+  checkGeometryConstraint,
+  type GeoConstraint,
+  type GeoPoint,
+} from "./geometry";
 
 export type GradeResult = {
   status: "PASSED" | "FAILED" | "SUBMITTED";
@@ -36,9 +41,241 @@ export async function gradeAttempt(
       return gradeFillBlank(exercise, answer);
     case "MATCHING":
       return gradeMatching(exercise, answer);
+    case "NUMERIC":
+      return gradeNumeric(exercise, answer);
+    case "FLASHCARDS":
+      return gradeFlashcards(exercise, answer);
+    case "CATEGORIZE":
+      return gradeCategorize(exercise, answer);
+    case "CODE_OUTPUT":
+      return gradeCodeOutput(exercise, answer);
+    case "LOGIC_CIRCUIT":
+      return gradeLogicCircuit(exercise, answer);
+    case "GEOMETRY":
+      return gradeGeometry(exercise, answer);
+    case "FREE_BODY":
+      return gradeFreeBody(exercise, answer);
     default:
       return { status: "SUBMITTED", score: 0, feedback: "Recorded." };
   }
+}
+
+function gradeNumeric(ex: ExerciseLike, answer: unknown): GradeResult {
+  const cfg = ex.config as { answer: number; tolerance?: number; unit?: string };
+  const value = (answer as { value?: number })?.value;
+  if (value === undefined || Number.isNaN(value)) {
+    return { status: "FAILED", score: 0, feedback: "Enter a numeric answer." };
+  }
+  const tol = cfg.tolerance ?? 0;
+  const ok = Math.abs(value - cfg.answer) <= tol;
+  const unit = cfg.unit ? ` ${cfg.unit}` : "";
+  return {
+    status: ok ? "PASSED" : "FAILED",
+    score: ok ? 100 : 0,
+    feedback: ok
+      ? `Correct — ${cfg.answer}${unit}.`
+      : `You answered ${value}${unit}; that's outside the accepted range. Check your setup and units.`,
+  };
+}
+
+function gradeFlashcards(ex: ExerciseLike, answer: unknown): GradeResult {
+  const cfg = ex.config as { cards: { front: string }[] };
+  const known = (answer as { known?: number })?.known ?? 0;
+  const total = cfg.cards.length;
+  const pct = Math.round((known / total) * 100);
+  const ok = known >= Math.ceil(total * 0.8);
+  return {
+    status: ok ? "PASSED" : "FAILED",
+    score: pct,
+    feedback: ok
+      ? `${known}/${total} known — nice recall.`
+      : `${known}/${total} known. Review the ones you missed and run the deck again.`,
+  };
+}
+
+function gradeCategorize(ex: ExerciseLike, answer: unknown): GradeResult {
+  const cfg = ex.config as { items: { label: string; category: number }[] };
+  const assignments = (answer as { assignments?: number[] })?.assignments ?? [];
+  const right = cfg.items.filter((it, i) => assignments[i] === it.category).length;
+  const ok = right === cfg.items.length;
+  return {
+    status: ok ? "PASSED" : "FAILED",
+    score: Math.round((right / cfg.items.length) * 100),
+    feedback: ok
+      ? "Every item sorted correctly!"
+      : `${right}/${cfg.items.length} sorted correctly. Rethink the misplaced ones.`,
+  };
+}
+
+function gradeCodeOutput(ex: ExerciseLike, answer: unknown): GradeResult {
+  const cfg = ex.config as { expectedOutput: string };
+  const got = ((answer as { output?: string })?.output ?? "").trim();
+  const want = cfg.expectedOutput.trim();
+  // Whitespace-forgiving comparison per line.
+  const normalize = (s: string) =>
+    s
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .join("\n");
+  const ok = normalize(got) === normalize(want);
+  return {
+    status: ok ? "PASSED" : "FAILED",
+    score: ok ? 100 : 0,
+    feedback: ok
+      ? "Exactly right — you traced it correctly."
+      : "Not what the snippet prints. Trace through it line by line, tracking each variable.",
+  };
+}
+
+type GateSpec = { type: string; in: string[] };
+
+function evalGate(type: string, a: number, b: number): number {
+  switch (type) {
+    case "AND":
+      return a & b;
+    case "OR":
+      return a | b;
+    case "XOR":
+      return a ^ b;
+    case "NAND":
+      return 1 - (a & b);
+    case "NOR":
+      return 1 - (a | b);
+    case "NOT":
+      return 1 - a;
+    default:
+      return 0;
+  }
+}
+
+/** Evaluates a gate network for one row of input values. Throws on bad refs. */
+function evalCircuit(
+  gates: GateSpec[],
+  outputRef: string,
+  inputVals: Record<string, number>
+): number {
+  const gateVals: number[] = [];
+  const resolve = (ref: string, before: number): number => {
+    if (ref in inputVals) return inputVals[ref];
+    const m = /^g(\d+)$/.exec(ref);
+    const idx = m ? Number(m[1]) : -1;
+    if (idx < 0 || idx >= before) throw new Error(`Bad wire reference "${ref}"`);
+    return gateVals[idx];
+  };
+  gates.forEach((g, i) => {
+    const a = resolve(g.in[0] ?? "", i);
+    const b = g.type === "NOT" ? 0 : resolve(g.in[1] ?? "", i);
+    gateVals.push(evalGate(g.type, a, b));
+  });
+  return resolve(outputRef, gates.length);
+}
+
+function gradeLogicCircuit(ex: ExerciseLike, answer: unknown): GradeResult {
+  const cfg = ex.config as { inputs: string[]; outputs: number[] };
+  const ans = answer as { gates?: GateSpec[]; output?: string };
+  if (!ans?.gates?.length || !ans.output) {
+    return {
+      status: "FAILED",
+      score: 0,
+      feedback: "Add at least one gate and connect it to the output.",
+    };
+  }
+  const rows = 1 << cfg.inputs.length;
+  let right = 0;
+  const misses: string[] = [];
+  for (let row = 0; row < rows; row++) {
+    const inputVals: Record<string, number> = {};
+    cfg.inputs.forEach((name, i) => {
+      inputVals[name] = (row >> (cfg.inputs.length - 1 - i)) & 1;
+    });
+    try {
+      const got = evalCircuit(ans.gates, ans.output, inputVals);
+      if (got === cfg.outputs[row]) right++;
+      else
+        misses.push(
+          cfg.inputs.map((n) => `${n}=${inputVals[n]}`).join(", ") +
+            ` → got ${got}, expected ${cfg.outputs[row]}`
+        );
+    } catch (err) {
+      return { status: "FAILED", score: 0, feedback: (err as Error).message };
+    }
+  }
+  const ok = right === rows;
+  return {
+    status: ok ? "PASSED" : "FAILED",
+    score: Math.round((right / rows) * 100),
+    feedback: ok
+      ? "Your circuit matches the truth table on every row!"
+      : `${right}/${rows} truth-table rows match.\n` + misses.slice(0, 3).join("\n"),
+  };
+}
+
+function gradeGeometry(ex: ExerciseLike, answer: unknown): GradeResult {
+  const cfg = ex.config as { points: GeoPoint[]; constraints: GeoConstraint[] };
+  const submitted = (answer as { points?: { id: string; x: number; y: number }[] })
+    ?.points;
+  const pts = new Map<string, { x: number; y: number }>();
+  // Fixed points always come from the config; free points from the submission.
+  for (const pt of cfg.points) pts.set(pt.id, { x: pt.x, y: pt.y });
+  for (const pt of submitted ?? []) {
+    const orig = cfg.points.find((o) => o.id === pt.id);
+    if (orig && !orig.fixed) pts.set(pt.id, { x: pt.x, y: pt.y });
+  }
+  const order = cfg.points.map((pt) => pt.id);
+  const results = cfg.constraints.map((c) => checkGeometryConstraint(c, pts, order));
+  const right = results.filter((r) => r.ok).length;
+  const ok = right === results.length;
+  const missed = results
+    .filter((r) => !r.ok)
+    .map((r) => `${r.label} (currently ${r.actual.toFixed(1)})`);
+  return {
+    status: ok ? "PASSED" : "FAILED",
+    score: Math.round((right / results.length) * 100),
+    feedback: ok
+      ? "All constraints satisfied — nice construction!"
+      : `${right}/${results.length} constraints met. Still off: ` + missed.join("; "),
+  };
+}
+
+/** Smallest circular difference between two angles in degrees. */
+function angleDiff(a: number, b: number): number {
+  return Math.abs(((a - b + 540) % 360) - 180);
+}
+
+function gradeFreeBody(ex: ExerciseLike, answer: unknown): GradeResult {
+  const cfg = ex.config as {
+    forces: { id: string; label: string; angleDeg: number; required: boolean }[];
+    toleranceDeg?: number;
+  };
+  const placed = (answer as { placed?: { id: string; angleDeg: number }[] })?.placed ?? [];
+  const tol = cfg.toleranceDeg ?? 15;
+  const required = cfg.forces.filter((f) => f.required);
+  const problems: string[] = [];
+  let right = 0;
+  for (const f of required) {
+    const got = placed.find((pl) => pl.id === f.id);
+    if (!got) problems.push(`${f.label} is missing.`);
+    else if (angleDiff(got.angleDeg, f.angleDeg) > tol)
+      problems.push(`${f.label} points the wrong way.`);
+    else right++;
+  }
+  for (const pl of placed) {
+    const f = cfg.forces.find((cf) => cf.id === pl.id);
+    if (f && !f.required) problems.push(`${f.label} does not act on this body.`);
+  }
+  const total = required.length + placed.filter((pl) => {
+    const f = cfg.forces.find((cf) => cf.id === pl.id);
+    return f && !f.required;
+  }).length;
+  const ok = problems.length === 0 && right === required.length;
+  return {
+    status: ok ? "PASSED" : "FAILED",
+    score: total > 0 ? Math.round((right / total) * 100) : 0,
+    feedback: ok
+      ? "Correct free-body diagram — every force present and properly aimed."
+      : problems.slice(0, 3).join(" "),
+  };
 }
 
 function gradeOrdering(ex: ExerciseLike, answer: unknown): GradeResult {

@@ -48,7 +48,7 @@ export default async function SubjectPage({
 
   return (
     <div>
-      <PageHeader title={subject.title} />
+      <PageHeader title={subject.title} eyebrow="Module" backHref={`/courses/${subject.courseId}`} />
       <Page wide>
         <Breadcrumbs
           items={[
@@ -79,11 +79,11 @@ export default async function SubjectPage({
           </ul>
         )}
 
-        <h2 className="mb-3 mt-8 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <h2 className="mb-4 mt-8 text-sm font-semibold text-foreground">
           Lessons
         </h2>
 
-        <div className="mt-8 space-y-10">
+        <div className="space-y-4">
           {subject.lessons.map((lesson, lessonIndex) => {
             const { done, total } = lessonCompletionCount(lesson.sections, completed);
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -92,60 +92,66 @@ export default async function SubjectPage({
             return (
               <article
                 key={lesson.id}
-                className="border-b border-border pb-10 last:border-0"
+                className="overflow-hidden rounded-xl border border-border bg-white shadow-card"
               >
-                <Link
-                  href={`/lessons/${lesson.id}/continue`}
-                  className="flex items-start gap-4 py-2 transition-colors hover:opacity-90"
-                >
+                <div className="flex items-start gap-4 border-b border-border bg-slate-50/60 p-4">
                   {lesson.imageUrl ? (
                     <CoverImage
                       src={lesson.imageUrl}
                       alt={lesson.title}
-                      className="size-14 shrink-0 rounded-lg object-cover"
+                      className="hidden size-14 shrink-0 rounded-lg object-cover sm:block"
                     />
                   ) : (
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-muted-foreground">
+                    <span className="hidden size-14 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-sm font-semibold text-brand-600 sm:flex">
                       {lessonIndex + 1}
                     </span>
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">{lesson.title}</h3>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Lesson {lessonIndex + 1}
                       {lessonComplete && (
-                        <CheckCircle2 className="size-4 text-primary" aria-label="Complete" />
+                        <CheckCircle2
+                          className="ml-1.5 inline size-3.5 align-[-2px] text-mint"
+                          aria-label="Complete"
+                        />
                       )}
-                    </div>
+                    </p>
+                    <h3 className="mt-0.5 text-sm font-semibold text-foreground">
+                      {lesson.title}
+                    </h3>
                     <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
                       {lesson.summary}
                     </p>
-                    <div className="mt-3 max-w-xs">
-                      <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                        <span>
-                          {done}/{total} steps
-                        </span>
-                        <span>{pct}%</span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                    <div className="mt-3 flex max-w-xs items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary">
                         <div
                           className="h-full rounded-full bg-primary"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
+                      <span className="whitespace-nowrap text-xs text-muted-foreground">
+                        {done}/{total} · {pct}%
+                      </span>
                     </div>
                   </div>
-                  <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
-                    <Play className="size-3.5" />
-                    {done === 0 ? "Start" : "Resume"}
-                  </span>
-                </Link>
-                {done > 0 && (
-                  <div className="py-2">
-                    <RedoLessonButton lessonId={lesson.id} />
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <Link
+                      href={`/lessons/${lesson.id}/continue`}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                        lessonComplete
+                          ? "bg-secondary text-foreground hover:bg-secondary/70"
+                          : "bg-primary text-white hover:bg-primary/90"
+                      )}
+                    >
+                      <Play className="size-3.5" />
+                      {done === 0 ? "Start" : lessonComplete ? "Review" : "Resume"}
+                    </Link>
+                    {done > 0 && <RedoLessonButton lessonId={lesson.id} />}
                   </div>
-                )}
+                </div>
 
-                <ul className="mt-2 divide-y divide-border border-t border-border">
+                <ul className="divide-y divide-border">
                   {lesson.sections.map((section, sectionIndex) => {
                     const meta = isSectionTypeKey(section.type)
                       ? SECTION_META[section.type]
@@ -155,35 +161,45 @@ export default async function SubjectPage({
 
                     return (
                       <li key={section.id}>
-                        <div className="flex items-center gap-1 py-3 pl-2 transition-colors hover:bg-secondary/40 sm:pl-4">
-                        <Link
-                          href={`/lessons/${lesson.id}/sections/${section.id}`}
-                          className="flex min-w-0 flex-1 items-center gap-3"
-                        >
-                          {isDone ? (
-                            <CheckCircle2 className="size-4 shrink-0 text-primary" />
-                          ) : (
-                            <Circle className="size-4 shrink-0 text-muted-foreground/35" />
-                          )}
-                          <span className="w-4 text-xs text-muted-foreground">
-                            {sectionIndex + 1}
-                          </span>
-                          {meta && (
+                        <div className="flex items-center gap-1 px-3 py-3 transition-colors hover:bg-secondary/40 sm:px-4">
+                          <Link
+                            href={`/lessons/${lesson.id}/sections/${section.id}`}
+                            className="flex min-w-0 flex-1 items-center gap-3"
+                          >
+                            {isDone ? (
+                              <CheckCircle2 className="size-4 shrink-0 text-mint" />
+                            ) : (
+                              <Circle className="size-4 shrink-0 text-muted-foreground/35" />
+                            )}
+                            <span className="w-4 text-xs text-muted-foreground">
+                              {sectionIndex + 1}
+                            </span>
+                            {meta && (
+                              <span
+                                className={cn(
+                                  "flex size-7 shrink-0 items-center justify-center rounded-md",
+                                  meta.bg
+                                )}
+                              >
+                                <Icon className={cn("size-3.5", meta.color)} />
+                              </span>
+                            )}
                             <span
                               className={cn(
-                                "flex size-7 shrink-0 items-center justify-center rounded-md",
-                                meta.bg
+                                "min-w-0 flex-1 text-sm",
+                                isDone && "text-muted-foreground"
                               )}
                             >
-                              <Icon className={cn("size-3.5", meta.color)} />
+                              {section.title ?? meta?.label ?? section.type}
                             </span>
-                          )}
-                          <span className="min-w-0 flex-1 text-sm">
-                            {section.title ?? meta?.label ?? section.type}
-                          </span>
-                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                        </Link>
-                        {isDone && <RedoSectionButton sectionId={section.id} />}
+                            {meta && (
+                              <span className="hidden text-xs text-muted-foreground sm:block">
+                                {meta.shortLabel}
+                              </span>
+                            )}
+                            <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                          </Link>
+                          {isDone && <RedoSectionButton sectionId={section.id} />}
                         </div>
                       </li>
                     );

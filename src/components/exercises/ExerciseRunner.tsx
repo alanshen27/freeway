@@ -14,6 +14,13 @@ import { GradedTextExercise } from "./GradedTextExercise";
 import { OrderingExercise } from "./OrderingExercise";
 import { FillBlankExercise } from "./FillBlankExercise";
 import { MatchingExercise } from "./MatchingExercise";
+import { NumericExercise } from "./NumericExercise";
+import { FlashcardsExercise } from "./FlashcardsExercise";
+import { CategorizeExercise } from "./CategorizeExercise";
+import { CodeOutputExercise } from "./CodeOutputExercise";
+import { LogicCircuitExercise } from "./LogicCircuitExercise";
+import { GeometryExercise } from "./GeometryExercise";
+import { FreeBodyExercise } from "./FreeBodyExercise";
 
 export type ExerciseType =
   | "CODING"
@@ -23,7 +30,14 @@ export type ExerciseType =
   | "GRADED_TEXT"
   | "ORDERING"
   | "FILL_BLANK"
-  | "MATCHING";
+  | "MATCHING"
+  | "NUMERIC"
+  | "FLASHCARDS"
+  | "CATEGORIZE"
+  | "CODE_OUTPUT"
+  | "LOGIC_CIRCUIT"
+  | "GEOMETRY"
+  | "FREE_BODY";
 
 export type ExercisePayload = {
   id: string;
@@ -75,6 +89,13 @@ export function ExerciseRunner({ exercise }: { exercise: ExercisePayload }) {
     ORDERING: "Ordering",
     FILL_BLANK: "Fill-in",
     MATCHING: "Matching",
+    NUMERIC: "Calculation",
+    FLASHCARDS: "Flashcards",
+    CATEGORIZE: "Sorting",
+    CODE_OUTPUT: "Trace the code",
+    LOGIC_CIRCUIT: "Circuit builder",
+    GEOMETRY: "Geometry",
+    FREE_BODY: "Force diagram",
   };
 
   return (
@@ -117,6 +138,27 @@ export function ExerciseRunner({ exercise }: { exercise: ExercisePayload }) {
         )}
         {exercise.type === "MATCHING" && (
           <MatchingExercise config={exercise.config} onChange={setAnswer} />
+        )}
+        {exercise.type === "NUMERIC" && (
+          <NumericExercise config={exercise.config} onChange={setAnswer} />
+        )}
+        {exercise.type === "FLASHCARDS" && (
+          <FlashcardsExercise config={exercise.config} onChange={setAnswer} />
+        )}
+        {exercise.type === "CATEGORIZE" && (
+          <CategorizeExercise config={exercise.config} onChange={setAnswer} />
+        )}
+        {exercise.type === "CODE_OUTPUT" && (
+          <CodeOutputExercise config={exercise.config} onChange={setAnswer} />
+        )}
+        {exercise.type === "LOGIC_CIRCUIT" && (
+          <LogicCircuitExercise config={exercise.config} onChange={setAnswer} />
+        )}
+        {exercise.type === "GEOMETRY" && (
+          <GeometryExercise config={exercise.config} onChange={setAnswer} />
+        )}
+        {exercise.type === "FREE_BODY" && (
+          <FreeBodyExercise config={exercise.config} onChange={setAnswer} />
         )}
       </div>
 

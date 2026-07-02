@@ -44,7 +44,11 @@ export default async function LessonHubPage({
 
   return (
     <div>
-      <PageHeader title={lesson.title} />
+      <PageHeader
+        title={lesson.title}
+        eyebrow="Lesson"
+        backHref={`/subjects/${lesson.subjectId}`}
+      />
       <Page className="py-5 sm:py-8">
         <div className="mx-auto max-w-2xl">
           {lesson.imageUrl && (
@@ -62,11 +66,8 @@ export default async function LessonHubPage({
                 { label: lesson.title },
               ]}
             />
-            <h1 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
-              {lesson.title}
-            </h1>
             {lesson.summary && (
-              <p className="mt-2 text-sm text-muted-foreground">{lesson.summary}</p>
+              <p className="mt-3 text-sm text-muted-foreground">{lesson.summary}</p>
             )}
 
             <div className="mt-5">

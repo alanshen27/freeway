@@ -27,6 +27,60 @@ export function lessonCompletionCount(
   return { done, total };
 }
 
+export type Completion = { done: number; total: number };
+
+export function completionPct({ done, total }: Completion): number {
+  return total > 0 ? Math.round((done / total) * 100) : 0;
+}
+
+/** Learner completion (done/total sections) for each course. */
+export async function getCourseCompletion(
+  userId: string | undefined,
+  courseIds: string[]
+): Promise<Map<string, Completion>> {
+  const map = new Map<string, Completion>(
+    courseIds.map((id) => [id, { done: 0, total: 0 }])
+  );
+  if (courseIds.length === 0) return map;
+
+  const sections = await prisma.lessonSection.findMany({
+    where: { lesson: { subject: { courseId: { in: courseIds } } } },
+    select: {
+      id: true,
+      lesson: { select: { subject: { select: { courseId: true } } } },
+    },
+  });
+  const completed = await getCompletedSectionIds(
+    userId,
+    sections.map((s) => s.id)
+  );
+  for (const s of sections) {
+    const c = map.get(s.lesson.subject.courseId);
+    if (!c) continue;
+    c.total += 1;
+    if (completed.has(s.id)) c.done += 1;
+  }
+  return map;
+}
+
+/** The learner's most recent completed step, for "continue learning". */
+export async function getLastActivity(userId: string | undefined) {
+  if (!userId) return null;
+  return prisma.sectionProgress.findFirst({
+    where: { userId },
+    orderBy: { completedAt: "desc" },
+    include: {
+      section: {
+        include: {
+          lesson: {
+            include: { subject: { include: { course: true } } },
+          },
+        },
+      },
+    },
+  });
+}
+
 async function syncLessonCompleted(lessonId: string, userId: string) {
   const all = await prisma.lessonSection.findMany({
     where: { lessonId },
@@ -112,6 +166,7 @@ export async function clearCourseContent(courseId: string): Promise<number> {
   await prisma.exercise.deleteMany({
     where: { courseId, lessonId: null },
   });
+  await prisma.assignment.deleteMany({ where: { courseId } });
   await prisma.course.update({
     where: { id: courseId },
     data: { progress: 0, status: "GENERATING" },

@@ -118,6 +118,55 @@ component plays it inside the app's look-and-feel, pausing at timestamps to ask
 comprehension questions. With no Manim, it animates a branded scene from the
 narration so the UX is identical.
 
+### Enabling real video renders (local dev)
+
+1. Install Manim (Community edition):
+
+   ```bash
+   pip install manim
+   manim --version   # should print e.g. Manim Community v0.20.x
+   ```
+
+2. Set in `.env`:
+
+   ```bash
+   MANIM_ENABLED=1
+   MANIM_BIN=manim   # or full path if not on PATH
+   ```
+
+3. **Install LaTeX** — generated scenes often use `MathTex` for equations (`F=ma`,
+   etc.). Manim invokes `latex` under the hood; without it renders fail with
+   `manim render exited 1` and `No such file or directory: 'latex'`.
+
+   On macOS (recommended — small install):
+
+   ```bash
+   brew install --cask basictex
+   # open a new terminal, then:
+   sudo tlmgr update --self
+   sudo tlmgr install collection-latexrecommended
+   which latex   # e.g. /Library/TeX/texbin/latex
+   ```
+
+   `collection-latexrecommended` is a TeX Live bundle of common LaTeX packages
+   (math, fonts, tables, …). BasicTeX is minimal; this fills in what Manim's
+   equation renderer needs.
+
+4. Restart the worker after changing env or installing LaTeX:
+
+   ```bash
+   npm run worker
+   ```
+
+**Don't want to deal with LaTeX?** Leave `MANIM_ENABLED=0` — the app uses the
+themed in-app player instead of mp4 renders. Course generation will not fail on
+video sections.
+
+**Debugging failed renders:** if a job dies with `manim render exited 1`, the
+scene script from the LLM is usually invalid Python or uses `MathTex` without
+LaTeX. Check worker logs; run the saved `sceneScript` manually with
+`manim -ql scene.py SceneClassName` to see the traceback.
+
 ## Forum
 
 Each course has a forum (`/feed`). Threads can **reference a specific exercise**

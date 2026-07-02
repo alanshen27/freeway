@@ -9,7 +9,14 @@ type ExType =
   | "GRADED_TEXT"
   | "ORDERING"
   | "FILL_BLANK"
-  | "MATCHING";
+  | "MATCHING"
+  | "NUMERIC"
+  | "FLASHCARDS"
+  | "CATEGORIZE"
+  | "CODE_OUTPUT"
+  | "LOGIC_CIRCUIT"
+  | "GEOMETRY"
+  | "FREE_BODY";
 
 const typeInstructions: Record<ExType, string> = {
   CODING:
@@ -27,6 +34,20 @@ const typeInstructions: Record<ExType, string> = {
     'config: { template:"... ___ ... ___", answers:string[] } where each ___ is filled by the matching answer in order.',
   MATCHING:
     "config: { left:string[], right:string[], pairs:number[] } where pairs[i] is the index in right that matches left[i].",
+  NUMERIC:
+    "config: { answer:number, tolerance:number, unit?:string, hint?:string }. A calculation with a single numeric result. Pick tolerance sensibly (e.g. 1-2% of answer).",
+  FLASHCARDS:
+    "config: { cards:[{front,back}] } with 5-8 cards. front is a term/question, back is the definition/answer. Keep both sides short.",
+  CATEGORIZE:
+    "config: { categories:string[] (2-3 buckets), items:[{label, category:number}] } with 5-8 items where category is the index of the correct bucket.",
+  CODE_OUTPUT:
+    'config: { language:"javascript"|"python", code:string, expectedOutput:string }. A short (5-12 line) snippet; learner predicts exactly what it prints. expectedOutput is the exact stdout text.',
+  LOGIC_CIRCUIT:
+    'config: { inputs:["A","B"] (2 or 3 input names), outputs:number[] (0/1 expected output for every input combination in binary counting order, first input is the most significant bit; length must be 2^inputs), expression:string (readable form, e.g. "A XOR B"), availableGates:["AND","OR","NOT","XOR","NAND","NOR"] (subset the learner may use), maxGates:number (3-5) }. Learner wires gates so the circuit matches the truth table.',
+  GEOMETRY:
+    'config: { grid:{width:number,height:number,snap:number} (e.g. 12x10 snap 1), points:[{id:"A",x,y,fixed?:boolean}] (3-5 single-letter points; fix 1-2 as anchors), polygon:boolean (true to draw the shape connecting points in order), constraints:[{type:"distance",a,b,value,tolerance} | {type:"angle",vertex,a,c,value,tolerance (degrees)} | {type:"area",value,tolerance} | {type:"perimeter",value,tolerance}] (1-3 constraints, all satisfiable on the grid simultaneously), hint?:string }. Learner drags the free points until every constraint holds.',
+  FREE_BODY:
+    'config: { scene:"flat"|"incline"|"hanging", inclineDeg?:number (only for incline), forces:[{id,label,angleDeg:number,required:boolean}] (3-5 entries; required:true forces belong on the diagram at angleDeg — degrees measured counterclockwise from the positive x axis, so straight down is 270; include 1-2 required:false distractor forces that do NOT act on the body), toleranceDeg:number (10-20) }. Learner picks which forces act on the body and aims each arrow.',
 };
 
 /** Subagent: generates one interactive exercise of the requested type. */
@@ -181,6 +202,128 @@ function mockExercise(type: ExType, lessonTitle: string): ExerciseSpec {
           pairs: [0, 1, 2],
         },
         solution: null,
+      };
+    case "NUMERIC":
+      return {
+        title: "Compute the result",
+        prompt:
+          "A machine does 240 J of work in 8 seconds. What is its power output in watts?",
+        difficulty: "intro",
+        config: { answer: 30, tolerance: 0.5, unit: "W", hint: "Power = work / time." },
+        solution: { value: 30 },
+      };
+    case "FLASHCARDS":
+      return {
+        title: `Key terms: ${lessonTitle}`,
+        prompt: "Flip through the deck. Mark each card as known or needs review.",
+        difficulty: "intro",
+        config: {
+          cards: [
+            { front: "Concept", back: "A core idea this lesson builds on" },
+            { front: "Application", back: "Using the concept on a real problem" },
+            { front: "Trade-off", back: "What you give up for what you gain" },
+            { front: "Heuristic", back: "A practical rule of thumb" },
+            { front: "Edge case", back: "An input at the boundary of validity" },
+          ],
+        },
+        solution: null,
+      };
+    case "CATEGORIZE":
+      return {
+        title: "Sort the examples",
+        prompt: "Assign each item to the bucket where it belongs.",
+        difficulty: "intro",
+        config: {
+          categories: ["Input", "Process", "Output"],
+          items: [
+            { label: "Sensor reading", category: 0 },
+            { label: "Filtering noise", category: 1 },
+            { label: "Control signal", category: 2 },
+            { label: "User request", category: 0 },
+            { label: "Computing an average", category: 1 },
+            { label: "Rendered report", category: 2 },
+          ],
+        },
+        solution: null,
+      };
+    case "CODE_OUTPUT":
+      return {
+        title: "Predict the output",
+        prompt: "Read the snippet and type exactly what it prints.",
+        difficulty: "intro",
+        config: {
+          language: "javascript",
+          code: 'let total = 0;\nfor (const n of [1, 2, 3]) {\n  total += n * 2;\n}\nconsole.log(total);',
+          expectedOutput: "12",
+        },
+        solution: { output: "12" },
+      };
+    case "LOGIC_CIRCUIT":
+      return {
+        title: "Build the XOR circuit",
+        prompt:
+          "Wire gates so the output matches the truth table: the light is on exactly when A and B differ.",
+        difficulty: "intro",
+        config: {
+          inputs: ["A", "B"],
+          outputs: [0, 1, 1, 0],
+          expression: "A XOR B",
+          availableGates: ["AND", "OR", "NOT", "NAND"],
+          maxGates: 4,
+        },
+        solution: {
+          gates: [
+            { type: "NAND", in: ["A", "B"] },
+            { type: "OR", in: ["A", "B"] },
+            { type: "AND", in: ["g0", "g1"] },
+          ],
+          output: "g2",
+        },
+      };
+    case "GEOMETRY":
+      return {
+        title: "Make it a right triangle",
+        prompt:
+          "Drag point C so triangle ABC has a right angle at B and an area of 6 square units.",
+        difficulty: "intro",
+        config: {
+          grid: { width: 12, height: 10, snap: 1 },
+          points: [
+            { id: "A", x: 2, y: 2, fixed: true },
+            { id: "B", x: 6, y: 2, fixed: true },
+            { id: "C", x: 8, y: 6 },
+          ],
+          polygon: true,
+          constraints: [
+            { type: "angle", vertex: "B", a: "A", c: "C", value: 90, tolerance: 3 },
+            { type: "area", value: 6, tolerance: 0.4 },
+          ],
+          hint: "The legs meet at B, so C must sit directly above or below B.",
+        },
+        solution: { points: [{ id: "C", x: 6, y: 5 }] },
+      };
+    case "FREE_BODY":
+      return {
+        title: "Forces on a resting box",
+        prompt:
+          "A box sits at rest on a horizontal table. Add every force acting on the box and aim each arrow in its true direction.",
+        difficulty: "intro",
+        config: {
+          scene: "flat",
+          forces: [
+            { id: "gravity", label: "Gravity (W)", angleDeg: 270, required: true },
+            { id: "normal", label: "Normal force (N)", angleDeg: 90, required: true },
+            { id: "friction", label: "Friction (f)", angleDeg: 180, required: false },
+            { id: "applied", label: "Applied push (F)", angleDeg: 0, required: false },
+          ],
+          toleranceDeg: 15,
+        },
+        solution: {
+          placed: [
+            { id: "gravity", angleDeg: 270 },
+            { id: "normal", angleDeg: 90 },
+          ],
+        },
       };
     case "MCQ":
     default:

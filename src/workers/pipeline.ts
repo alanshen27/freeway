@@ -38,7 +38,14 @@ type WritableExerciseType =
   | "GRADED_TEXT"
   | "ORDERING"
   | "FILL_BLANK"
-  | "MATCHING";
+  | "MATCHING"
+  | "NUMERIC"
+  | "FLASHCARDS"
+  | "CATEGORIZE"
+  | "CODE_OUTPUT"
+  | "LOGIC_CIRCUIT"
+  | "GEOMETRY"
+  | "FREE_BODY";
 
 type SectionPlan = {
   type: "READING" | "VIDEO" | "WORKSHEET" | "QUESTIONS" | "EXERCISE";
@@ -224,6 +231,14 @@ export async function runCourseGeneration(data: CourseJobData) {
       })
     ),
     ]);
+
+    await log(jobId, 96, "assignments", "Creating starter assignments…");
+    try {
+      const { generateDefaultAssignments } = await import("@/lib/assignments");
+      await generateDefaultAssignments(courseId, data.userId);
+    } catch (err) {
+      console.error("[pipeline] default assignments failed", err);
+    }
 
     await prisma.course.update({
       where: { id: courseId },

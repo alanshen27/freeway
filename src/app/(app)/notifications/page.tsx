@@ -19,7 +19,7 @@ export default async function NotificationsPage() {
 
   return (
     <Page>
-      <PageTitle title="Notifications" description="Generation updates and activity" />
+      <PageTitle eyebrow="Account" title="Notifications" description="Generation updates and activity" />
       <ListPanel className="mt-6">
         {jobs.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">

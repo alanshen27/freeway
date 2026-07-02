@@ -52,15 +52,15 @@ export default async function SectionPage({
 
   return (
     <div>
-      <PageHeader title={section.title ?? lesson.title} />
+      <PageHeader toolbar backHref={`/lessons/${lessonId}`} />
       <Page className="mx-auto max-w-4xl py-5 sm:py-8">
         <Breadcrumbs
           items={[
             { label: course.title, href: `/courses/${course.id}` },
             { label: lesson.subject.title, href: `/subjects/${lesson.subjectId}` },
             { label: lesson.title, href: `/lessons/${lessonId}` },
-            { label: `Step ${sectionIndex + 1}` },
           ]}
+          className="mb-5"
         />
 
         <SectionView
@@ -68,6 +68,7 @@ export default async function SectionPage({
           videos={lesson.videos}
           exercises={lesson.exercises}
           courseId={course.id}
+          stepLabel={`Step ${sectionIndex + 1} of ${lesson.sections.length}`}
         />
 
         <SectionFooter

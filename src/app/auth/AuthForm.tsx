@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Mail, Lock } from "lucide-react";
+import { Mail, Lock } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,12 +51,9 @@ export function AuthForm() {
     <div className="flex min-h-dvh flex-col px-6 pb-10 pt-20 lg:min-h-[640px]">
       <div className="flex flex-1 flex-col justify-center">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="flex size-16 items-center justify-center rounded-3xl bg-course-gradient text-white shadow-soft">
-            <Sparkles className="size-8" />
-          </div>
-          <h1 className="mt-4 font-display text-2xl font-bold">Freeway</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "signin" ? "Welcome back" : "Create your account"}
+          <BrandLogo href="/" size="lg" className="justify-center" />
+          <p className="mt-5 text-sm text-muted-foreground">
+            {mode === "signin" ? "Sign in to continue learning" : "Create your account"}
           </p>
         </div>
 

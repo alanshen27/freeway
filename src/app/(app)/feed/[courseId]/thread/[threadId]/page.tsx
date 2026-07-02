@@ -28,7 +28,11 @@ export default async function ThreadPage({
 
   return (
     <div>
-      <PageHeader title={thread.title} />
+      <PageHeader
+        title={thread.title}
+        eyebrow="Discussion"
+        backHref={`/feed/${courseId}`}
+      />
       <Page>
         <ContentBlock>
           <div className="flex items-center gap-2">
@@ -60,7 +64,7 @@ export default async function ThreadPage({
 
         {thread.posts.length > 0 && (
           <div className="mt-6">
-            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="mb-3 text-sm font-semibold text-foreground">
               Replies ({thread.posts.length})
             </p>
             <ListPanel>

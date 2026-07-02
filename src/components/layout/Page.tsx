@@ -29,19 +29,31 @@ export function PageTitle({
   title,
   description,
   action,
+  eyebrow,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  eyebrow?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
+    <div className="flex flex-wrap items-start justify-between gap-4 pb-2">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+        {eyebrow && (
+          <p className="text-xs font-medium text-muted-foreground">
+            {eyebrow}
+          </p>
+        )}
+        <h1
+          className={cn(
+            "font-semibold tracking-tight text-foreground",
+            eyebrow ? "mt-1 text-xl sm:text-2xl" : "text-xl sm:text-2xl"
+          )}
+        >
           {title}
         </h1>
         {description && (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
         )}
       </div>
       {action}
@@ -60,7 +72,7 @@ export function SectionHeading({
   return (
     <h2
       className={cn(
-        "text-xs font-medium uppercase tracking-wide text-muted-foreground",
+        "text-sm font-semibold text-foreground",
         className
       )}
     >
@@ -72,13 +84,18 @@ export function SectionHeading({
 /** Breadcrumb trail for lesson / unit / course hierarchy. */
 export function Breadcrumbs({
   items,
+  className,
 }: {
   items: { label: string; href?: string }[];
+  className?: string;
 }) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="mb-4 flex max-w-md flex-nowrap items-center gap-1 overflow-hidden text-xs text-muted-foreground sm:max-w-xl lg:max-w-2xl"
+      className={cn(
+        "mb-4 flex max-w-md flex-nowrap items-center gap-1 overflow-hidden text-xs text-muted-foreground sm:max-w-xl lg:max-w-2xl",
+        className
+      )}
     >
       {items.map((item, i) => (
         <span key={i} className="flex min-w-0 items-center gap-1">

@@ -20,7 +20,7 @@ export default async function SettingsPage() {
 
   return (
     <Page>
-      <PageTitle title="Settings" description="Account and preferences" />
+      <PageTitle eyebrow="Account" title="Settings" description="Account and preferences" />
 
       <section className="mt-6 space-y-6">
         <div className="flex items-center gap-4 border-b border-border pb-6">
@@ -44,9 +44,7 @@ export default async function SettingsPage() {
         </div>
 
         <div>
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Interests
-          </h2>
+          <h2 className="text-sm font-semibold text-foreground">Interests</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {fresh.interests.map((i) => (
               <Badge key={i.interestId} variant="primary">

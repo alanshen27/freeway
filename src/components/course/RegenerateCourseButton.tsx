@@ -30,8 +30,8 @@ export function RegenerateCourseButton({
       });
       const data = (await res.json()) as { jobId?: string; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed");
-      if (data.jobId) router.push(`/add/generating/${data.jobId}`);
-      else router.refresh();
+      // The course page shows live progress while the job runs.
+      router.refresh();
     } catch (e) {
       alert((e as Error).message);
     } finally {

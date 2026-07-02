@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function NamePage() {
   const router = useRouter();
@@ -36,9 +37,7 @@ export default function NamePage() {
         <Button variant="duo" className="w-full" disabled={!name.trim()} onClick={next}>
           Continue
         </Button>
-        <span className="font-display text-sm font-extrabold tracking-tight text-muted-foreground">
-          Freeway
-        </span>
+        <BrandLogo href="/" size="sm" className="opacity-60" />
       </div>
     </div>
   );

@@ -38,44 +38,30 @@ export function SectionView({
   videos,
   exercises,
   courseId,
+  stepLabel,
 }: {
   section: Section;
   videos: VideoRec[];
   exercises: ExerciseRec[];
   courseId: string;
+  /** e.g. "Step 3 of 4" — rendered in the eyebrow next to the section type. */
+  stepLabel?: string;
 }) {
   const videoById = new Map(videos.map((v) => [v.id, v]));
   const exerciseById = new Map(exercises.map((e) => [e.id, e]));
 
   const meta = isSectionTypeKey(section.type) ? SECTION_META[section.type] : null;
-  const { Icon } = meta ?? {
-    Icon: () => null,
-    label: section.type,
-    bg: "bg-secondary",
-    color: "text-muted-foreground",
-  };
 
   return (
     <div>
-      <header className="mb-5 flex items-start gap-3">
-        {meta && (
-          <span
-            className={cn(
-              "flex size-10 shrink-0 items-center justify-center rounded-lg",
-              meta.bg
-            )}
-          >
-            <Icon className={cn("size-5", meta.color)} aria-hidden />
-          </span>
-        )}
-        <div className="min-w-0 pt-0.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {meta?.label ?? section.type}
-          </p>
-          <h2 className="mt-0.5 text-lg font-semibold tracking-tight text-foreground">
-            {section.title ?? meta?.label ?? section.type}
-          </h2>
-        </div>
+      <header className="mb-6">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          {section.title ?? meta?.label ?? section.type}
+        </h1>
+        <p className="mt-1 text-xs font-medium text-muted-foreground">
+          {meta?.label ?? section.type}
+          {stepLabel ? ` · ${stepLabel}` : ""}
+        </p>
       </header>
 
       <div className={cn(section.type === "VIDEO" ? "max-w-none" : "max-w-none lg:max-w-3xl")}>

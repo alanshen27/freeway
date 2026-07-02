@@ -27,13 +27,14 @@ export default async function FeedPage() {
   return (
     <Page>
       <PageTitle
+        eyebrow="Community"
         title="Feed"
         description="Course discussions and help threads"
       />
 
       {courses.length > 0 && (
         <div className="mt-6">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2 text-sm font-semibold text-foreground">
             Course forums
           </p>
           <div className="flex flex-wrap gap-2">
@@ -54,7 +55,7 @@ export default async function FeedPage() {
       )}
 
       <div className="mt-8">
-        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="mb-3 text-sm font-semibold text-foreground">
           Recent discussions
         </p>
         {threads.length === 0 ? (
