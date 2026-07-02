@@ -21,7 +21,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-dvh w-full">
-      <Sidebar user={{ name: user.name, email: user.email }} />
+      <Sidebar user={{ name: user.name, email: user.email, isAdmin: user.isAdmin }} />
       <main className="relative min-h-dvh min-w-0 flex-1 bg-white">
         <TopBar
           user={{ name: user.name }}

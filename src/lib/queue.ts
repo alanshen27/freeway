@@ -28,6 +28,28 @@ function getCourseQueue(): Queue | null {
   return globalForQueue.courseQueue;
 }
 
+/** Remove a job from BullMQ (no-op without Redis). */
+export async function removeQueueJob(jobId: string) {
+  const queue = getCourseQueue();
+  if (!queue) return;
+  try {
+    const job = await queue.getJob(jobId);
+    if (job) await job.remove();
+  } catch {
+    /* already gone */
+  }
+}
+
+/** Drop queued/active BullMQ work before deleting course rows. */
+export async function cancelCourseQueueJobs(courseId: string) {
+  const { prisma } = await import("./prisma");
+  const jobs = await prisma.generationJob.findMany({
+    where: { courseId },
+    select: { id: true },
+  });
+  await Promise.all(jobs.map((j) => removeQueueJob(j.id)));
+}
+
 /**
  * Enqueue a course-generation job. With Redis configured this hands off to the
  * BullMQ worker (`npm run worker`). Without Redis it executes the same pipeline

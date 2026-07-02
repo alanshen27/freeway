@@ -15,6 +15,7 @@
     "prisma:migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "tsx prisma/seed.ts",
+    "admin:superuser": "tsx scripts/create-superuser.ts",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down"
   },

@@ -20,6 +20,7 @@ import type { CourseJobData } from "@/lib/queue";
 import { getLlmCostSummary, runWithLlmCostContext } from "@/lib/llm";
 import { clearCourseContent } from "@/lib/section-progress";
 import type { ExerciseType } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 type LogEntry = { at: string; step: string; msg: string };
 
@@ -211,16 +212,18 @@ async function runCourseGenerationInner(
     });
 
     if (!course.coverImageUrl) {
-      void generateCourseImage({
-        id: courseId,
-        title: blueprint.title,
-        summary: blueprint.summary,
-        category: course.category,
-      }).then((coverImageUrl) => {
-        if (coverImageUrl) {
-          return prisma.course.update({ where: { id: courseId }, data: { coverImageUrl } });
-        }
-      });
+      applyCoverWhenReady(
+        jobId,
+        generateCourseImage({
+          id: courseId,
+          title: blueprint.title,
+          summary: blueprint.summary,
+          category: course.category,
+        }),
+        (coverImageUrl) =>
+          prisma.course.update({ where: { id: courseId }, data: { coverImageUrl } }),
+        pipelineLog
+      );
     }
 
     const totalLessons = subjectPlans.reduce((n, p) => n + p.lessons.length, 0);
@@ -297,18 +300,20 @@ async function runCourseGenerationInner(
         }
 
         if (!subject.imageUrl) {
-          void generateSubjectImage({
-            id: subject.id,
-            courseTitle: blueprint.title,
-            title: s.title,
-            summary: s.summary,
-            goals: s.goals,
-            category: course.category,
-          }).then((imageUrl) => {
-            if (imageUrl) {
-              return prisma.subject.update({ where: { id: subject.id }, data: { imageUrl } });
-            }
-          });
+          applyCoverWhenReady(
+            jobId,
+            generateSubjectImage({
+              id: subject.id,
+              courseTitle: blueprint.title,
+              title: s.title,
+              summary: s.summary,
+              goals: s.goals,
+              category: course.category,
+            }),
+            (imageUrl) =>
+              prisma.subject.update({ where: { id: subject.id }, data: { imageUrl } }),
+            pipelineLog
+          );
         }
 
         await Promise.all(
@@ -344,18 +349,21 @@ async function runCourseGenerationInner(
             }
 
             if (!lesson.imageUrl) {
-              void generateLessonImage({
-                id: lesson.id,
-                courseTitle: blueprint.title,
-                subjectTitle: s.title,
-                title: lp.title,
-                summary: lp.summary,
-                category: course.category,
-              }).then((imageUrl) => {
-                if (imageUrl) {
-                  return prisma.lesson.update({ where: { id: lesson.id }, data: { imageUrl } });
-                }
-              });
+              const lessonId = lesson.id;
+              applyCoverWhenReady(
+                jobId,
+                generateLessonImage({
+                  id: lessonId,
+                  courseTitle: blueprint.title,
+                  subjectTitle: s.title,
+                  title: lp.title,
+                  summary: lp.summary,
+                  category: course.category,
+                }),
+                (imageUrl) =>
+                  prisma.lesson.update({ where: { id: lessonId }, data: { imageUrl } }),
+                pipelineLog
+              );
             }
 
             const ctx = {
@@ -473,6 +481,34 @@ async function assertActiveJob(jobId: string) {
 async function assertLesson(lessonId: string) {
   const exists = await prisma.lesson.count({ where: { id: lessonId } });
   if (!exists) throw new Error("Lesson no longer exists (stale generation)");
+}
+
+function isStaleGenerationError(err: unknown): boolean {
+  return (
+    (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") ||
+    (err instanceof Error &&
+      (err.message.includes("superseded") ||
+        err.message.includes("no longer exists")))
+  );
+}
+
+/** Cover images generate async — skip DB write if course/lesson was deleted or job superseded. */
+function applyCoverWhenReady(
+  jobId: string,
+  imagePromise: Promise<string | null>,
+  apply: (url: string) => Promise<unknown>,
+  log?: WorkerLogger
+) {
+  void imagePromise
+    .then(async (url) => {
+      if (!url) return;
+      await assertActiveJob(jobId);
+      await apply(url);
+    })
+    .catch((err) => {
+      if (isStaleGenerationError(err)) return;
+      log?.warn("cover image update failed", { jobId }, err);
+    });
 }
 
 async function generateSection(args: {

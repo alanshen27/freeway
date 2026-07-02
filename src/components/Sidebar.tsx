@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Home,
   BarChart3,
+  Shield,
 } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { cn, initials } from "@/lib/utils";
@@ -29,7 +30,7 @@ const accountMenu = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-type UserInfo = { name: string; email?: string | null };
+type UserInfo = { name: string; email?: string | null; isAdmin?: boolean };
 
 function NavGroup({
   items,
@@ -115,6 +116,17 @@ export function Sidebar({ user }: { user: UserInfo }) {
           Account
         </p>
         <NavGroup items={accountMenu} pathname={pathname} />
+        {user.isAdmin && (
+          <>
+            <p className="mb-2 mt-7 px-3 text-[11px] font-medium text-slate-400">
+              Admin
+            </p>
+            <NavGroup
+              items={[{ href: "/admin", label: "Admin panel", icon: Shield }]}
+              pathname={pathname}
+            />
+          </>
+        )}
       </nav>
 
       <SidebarUserFooter user={user} />
