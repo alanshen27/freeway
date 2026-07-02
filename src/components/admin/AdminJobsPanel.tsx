@@ -20,6 +20,12 @@ type JobRow = {
   step: string;
   error: string | null;
   createdAt: string;
+  durationSec: number | null;
+  durationLabel: string | null;
+  llmCostUsd: number | null;
+  llmCalls: number | null;
+  llmInputTokens: number | null;
+  llmOutputTokens: number | null;
 };
 
 type Stats = {
@@ -29,7 +35,15 @@ type Stats = {
   failed: number;
   completed: number;
   orphaned: number;
+  completedCostUsd: number;
+  avgCompletedCostUsd: number | null;
 };
+
+function formatUsd(n: number | null): string {
+  if (n == null) return "—";
+  if (n < 0.01) return `$${n.toFixed(4)}`;
+  return `$${n.toFixed(2)}`;
+}
 
 function statusVariant(status: string) {
   switch (status) {
@@ -94,15 +108,22 @@ export function AdminJobsPanel() {
   return (
     <div className="space-y-6">
       {stats && (
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
           {(
             [
-              ["Total", stats.total],
-              ["Queued", stats.queued],
-              ["Running", stats.running],
-              ["Failed", stats.failed],
-              ["Done", stats.completed],
-              ["Orphan", stats.orphaned],
+              ["Total", String(stats.total)],
+              ["Queued", String(stats.queued)],
+              ["Running", String(stats.running)],
+              ["Failed", String(stats.failed)],
+              ["Done", String(stats.completed)],
+              ["Orphan", String(stats.orphaned)],
+              ["Completed spend", formatUsd(stats.completedCostUsd)],
+              [
+                "Avg / course",
+                stats.avgCompletedCostUsd != null
+                  ? formatUsd(stats.avgCompletedCostUsd)
+                  : "—",
+              ],
             ] as const
           ).map(([label, value]) => (
             <div
