@@ -1,7 +1,7 @@
 import { features } from "@/lib/env";
 import { generateImage } from "@/lib/image-gen";
 import { findStockImage } from "@/lib/serp";
-import { reviewImages } from "@/workers/agents/images";
+// import { reviewImages } from "@/workers/agents/images";
 
 type ImageSpec = {
   slot: string;
@@ -34,7 +34,7 @@ function stripImageSlot(markdown: string, slot: string): string {
 
 async function resolveImageUrl(spec: ImageSpec, filename: string): Promise<string | null> {
   if (features.imageGen) {
-    const generated = await generateImage(spec.prompt, filename);
+    const generated = await generateImage(spec.prompt, filename, "generateImage:doc");
     if (generated) return generated;
   }
   if (features.serp) {
@@ -55,36 +55,9 @@ async function fetchImages(
   );
 }
 
-async function applyReplacements(
-  urls: ResolvedImage[],
-  review: Awaited<ReturnType<typeof reviewImages>>,
-  scopeId: string
-): Promise<ResolvedImage[]> {
-  const next = [...urls];
-  const toFix = review.slots.filter((s) => !s.relevant && s.newQuery?.trim());
-
-  await Promise.all(
-    toFix.map(async (rep) => {
-      const idx = next.findIndex((u) => u.slot === rep.slot);
-      if (idx < 0) return;
-      const newPrompt = rep.newQuery!.trim();
-      next[idx] = {
-        ...next[idx],
-        prompt: newPrompt,
-        url: await resolveImageUrl(
-          { ...next[idx], prompt: newPrompt },
-          `doc-${scopeId}-${rep.slot}-retry`
-        ),
-      };
-    })
-  );
-
-  return next;
-}
-
 /**
- * Build markdown with generated or SERP images, vision-reviewed.
- * Missing images are omitted from the document (no gradient placeholders).
+ * Build markdown with generated or SERP images.
+ * Vision QA disabled for speed/reliability — images are used as generated.
  */
 export async function buildDocumentWithImages(
   markdown: string,
@@ -98,8 +71,9 @@ export async function buildDocumentWithImages(
     return { markdown, images: [] };
   }
 
-  let urls = await fetchImages(specs, scopeId);
+  const urls = await fetchImages(specs, scopeId);
 
+  /* Image QA disabled — was slow and GLM schema mismatches caused wasted calls.
   for (let pass = 0; pass < 2; pass++) {
     const withUrl = urls.filter((u): u is ResolvedImage & { url: string } => Boolean(u.url));
     if (withUrl.length === 0) break;
@@ -119,6 +93,7 @@ export async function buildDocumentWithImages(
 
     urls = await applyReplacements(urls, review, scopeId);
   }
+  */
 
   const ok = urls.filter((u): u is ResolvedImage & { url: string } => Boolean(u.url));
   let out = markdown;

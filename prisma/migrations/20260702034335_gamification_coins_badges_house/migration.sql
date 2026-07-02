@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "badges" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN     "coins" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "houseLayout" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN     "inventory" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN     "lastActivityAt" TIMESTAMP(3);

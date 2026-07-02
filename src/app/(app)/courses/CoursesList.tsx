@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -18,14 +18,21 @@ type C = {
   coverImageUrl?: string | null;
 };
 
+type GenStatus = {
+  progress: number;
+  step: string;
+  message: string;
+};
+
 const FILTERS = ["All", "In progress", "Completed", "Not started"] as const;
 type Filter = (typeof FILTERS)[number];
 
 function matchesFilter(c: C, f: Filter) {
   if (f === "All") return true;
-  if (f === "In progress") return c.progress > 0 && c.progress < 100;
+  if (f === "In progress")
+    return c.status === "GENERATING" || (c.progress > 0 && c.progress < 100);
   if (f === "Completed") return c.lessonsTotal > 0 && c.progress === 100;
-  return c.progress === 0;
+  return c.progress === 0 && c.status !== "GENERATING";
 }
 
 export function CoursesList({
@@ -37,6 +44,50 @@ export function CoursesList({
 }) {
   const [q, setQ] = useState(initialQuery);
   const [filter, setFilter] = useState<Filter>("All");
+  const [genStatus, setGenStatus] = useState<Record<string, GenStatus>>({});
+
+  const hasGenerating = useMemo(
+    () => courses.some((c) => c.status === "GENERATING"),
+    [courses]
+  );
+
+  useEffect(() => {
+    if (!hasGenerating) return;
+    let stop = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    async function poll() {
+      if (stop) return;
+      try {
+        const res = await fetch("/api/courses/generation-status", { cache: "no-store" });
+        if (res.ok) {
+          const data = (await res.json()) as {
+            courses: Record<string, GenStatus & { jobId: string; status: string }>;
+          };
+          if (!stop) {
+            const next: Record<string, GenStatus> = {};
+            for (const [id, s] of Object.entries(data.courses ?? {})) {
+              next[id] = {
+                progress: s.progress,
+                step: s.step,
+                message: s.message,
+              };
+            }
+            setGenStatus(next);
+          }
+        }
+      } catch {
+        /* retry */
+      }
+      if (!stop) timer = setTimeout(poll, 2000);
+    }
+
+    poll();
+    return () => {
+      stop = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [hasGenerating]);
 
   const filtered = useMemo(
     () =>
@@ -84,21 +135,26 @@ export function CoursesList({
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((c) => (
-            <CourseProgressCard
-              key={c.id}
-              href={`/courses/${c.id}`}
-              title={c.title}
-              summary={c.summary}
-              progress={c.progress}
-              lessonsDone={c.lessonsDone}
-              lessonsTotal={c.lessonsTotal}
-              status={c.status}
-              level={c.level}
-              category={c.category}
-              coverImageUrl={c.coverImageUrl}
-            />
-          ))}
+          {filtered.map((c) => {
+            const live = genStatus[c.id];
+            return (
+              <CourseProgressCard
+                key={c.id}
+                href={`/courses/${c.id}`}
+                title={c.title}
+                summary={c.summary}
+                progress={c.progress}
+                lessonsDone={c.lessonsDone}
+                lessonsTotal={c.lessonsTotal}
+                status={c.status}
+                level={c.level}
+                category={c.category}
+                coverImageUrl={c.coverImageUrl}
+                generationProgress={live?.progress}
+                generationMessage={live?.message}
+              />
+            );
+          })}
         </div>
       )}
     </div>

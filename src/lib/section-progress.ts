@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { awardLearningReward, type RewardResult } from "@/lib/gamification/rewards";
 
 export async function getCompletedSectionIds(
   userId: string | undefined,
@@ -99,12 +100,20 @@ async function syncLessonCompleted(lessonId: string, userId: string) {
 }
 
 /** Mark a section complete and sync parent lesson when all sections are done. */
-export async function markSectionComplete(userId: string, sectionId: string) {
+export async function markSectionComplete(
+  userId: string,
+  sectionId: string,
+  opts?: { skipReward?: boolean }
+) {
   const section = await prisma.lessonSection.findUnique({
     where: { id: sectionId },
     select: { lessonId: true },
   });
   if (!section) return null;
+
+  const existing = await prisma.sectionProgress.findUnique({
+    where: { userId_sectionId: { userId, sectionId } },
+  });
 
   await prisma.sectionProgress.upsert({
     where: { userId_sectionId: { userId, sectionId } },
@@ -113,7 +122,13 @@ export async function markSectionComplete(userId: string, sectionId: string) {
   });
 
   const lessonDone = await syncLessonCompleted(section.lessonId, userId);
-  return { lessonId: section.lessonId, lessonDone };
+
+  let reward: RewardResult | null = null;
+  if (!existing && !opts?.skipReward) {
+    reward = await awardLearningReward(userId, 5);
+  }
+
+  return { lessonId: section.lessonId, lessonDone, reward };
 }
 
 /** Clear completion for one step so the learner can redo it. */

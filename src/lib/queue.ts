@@ -1,6 +1,9 @@
 import { Queue, type ConnectionOptions } from "bullmq";
 import { getRedis } from "./redis";
 import { features } from "./env";
+import { createLogger } from "./logger";
+
+const log = createLogger("queue");
 
 export const COURSE_QUEUE = "course-generation";
 
@@ -8,6 +11,8 @@ export type CourseJobData = {
   jobId: string;
   courseId: string;
   userId: string;
+  /** Keep existing curriculum and fill missing sections (retry after failure). */
+  resume?: boolean;
 };
 
 const globalForQueue = globalThis as unknown as { courseQueue?: Queue };
@@ -37,17 +42,32 @@ export async function enqueueCourseGeneration(data: CourseJobData) {
       removeOnFail: 100,
       jobId: data.jobId,
     });
+    log.info("job enqueued", {
+      jobId: data.jobId,
+      courseId: data.courseId,
+      resume: data.resume ?? false,
+    });
     return { mode: "queue" as const };
   }
 
   // Inline fallback — fire and forget. Imported lazily to keep BullMQ/worker
   // code out of the request path when not needed.
   void (async () => {
+    const inlineLog = log.child({
+      jobId: data.jobId,
+      courseId: data.courseId,
+      mode: "inline",
+    });
+    inlineLog.info("inline generation started");
     try {
       const { runCourseGeneration } = await import("@/workers/pipeline");
-      await runCourseGeneration(data);
+      await runCourseGeneration(
+        data,
+        inlineLog.child({ scope: "pipeline" })
+      );
+      inlineLog.info("inline generation completed");
     } catch (err) {
-      console.error("[queue] inline generation failed", err);
+      inlineLog.error("inline generation failed", {}, err);
     }
   })();
   return { mode: "inline" as const };

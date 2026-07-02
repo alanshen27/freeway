@@ -3,6 +3,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { createAssignment } from "@/lib/assignments";
+import { withApiLog } from "@/lib/api-log";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("api.assignments");
 
 const schema = z.object({
   type: z.enum(["PRACTICE", "PROJECT", "QUIZ"]),
@@ -18,6 +22,7 @@ export async function POST(
   if (!user) return NextResponse.json({ error: "No session" }, { status: 401 });
 
   const { courseId } = await params;
+  return withApiLog("POST /api/courses/:courseId/assignments", { courseId }, async () => {
   const course = await prisma.course.findUnique({ where: { id: courseId } });
   if (!course || course.ownerId !== user.id)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -43,10 +48,11 @@ export async function POST(
     });
     return NextResponse.json({ assignment });
   } catch (err) {
-    console.error("[api] assignment generation failed", err);
+    log.error("assignment generation failed", { courseId, userId: user.id }, err);
     return NextResponse.json(
       { error: "Generation failed. Please try again." },
       { status: 500 }
     );
   }
+  });
 }

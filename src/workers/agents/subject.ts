@@ -16,6 +16,7 @@ type PlanInput = {
  */
 export async function planSubjectLessons(input: PlanInput): Promise<SubjectBlueprint> {
   return llmJSON({
+    task: "planSubjectLessons",
     schema: subjectBlueprintSchema,
     system:
       "You plan lessons for a professional LMS. Each lesson is a multi-step module with " +

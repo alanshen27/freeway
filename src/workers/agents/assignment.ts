@@ -30,6 +30,7 @@ export async function writeAssignment(args: {
     : `Cover the course material broadly, weighted toward foundational topics.`;
 
   return llmJSON({
+    task: "writeAssignment",
     schema: assignmentSpecSchema,
     system:
       "You create course assignments for a professional LMS. Write clear, practical, self-contained briefs in markdown. JSON only.",

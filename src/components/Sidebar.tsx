@@ -9,6 +9,8 @@ import {
   Bell,
   LogOut,
   ClipboardList,
+  Home,
+  BarChart3,
 } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { cn, initials } from "@/lib/utils";
@@ -16,6 +18,8 @@ import { cn, initials } from "@/lib/utils";
 const mainMenu = [
   { href: "/courses", label: "My courses", icon: BookOpen },
   { href: "/assignments", label: "Assignments", icon: ClipboardList },
+  { href: "/progress", label: "Progress", icon: BarChart3 },
+  { href: "/house", label: "My room", icon: Home },
   { href: "/feed", label: "Feed", icon: MessagesSquare },
   { href: "/add", label: "New course", icon: Plus },
 ];

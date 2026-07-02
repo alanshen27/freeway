@@ -27,6 +27,8 @@ export function RegenerateCourseButton({
     try {
       const res = await fetch(`/api/courses/${courseId}/generate`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fresh: true }),
       });
       const data = (await res.json()) as { jobId?: string; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed");

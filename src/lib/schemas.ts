@@ -113,11 +113,87 @@ export const questionsSectionSchema = z.object({
 });
 export type QuestionsSection = z.infer<typeof questionsSectionSchema>;
 
+/** One visual step — compiled to exactly one self.play or self.wait (no combo animations). */
+export const videoBeatSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("title"),
+    text: z.string().min(1).max(55),
+    runTime: z.number().min(1).max(5).optional(),
+  }),
+  z.object({
+    type: z.literal("shift_title_up"),
+    runTime: z.number().min(0.5).max(3).optional(),
+  }),
+  z.object({
+    type: z.literal("text"),
+    text: z.string().min(1).max(75),
+    runTime: z.number().min(1).max(5).optional(),
+  }),
+  z.object({
+    type: z.literal("wait"),
+    seconds: z.number().min(0.5).max(6),
+  }),
+  z.object({
+    type: z.literal("fade_out"),
+    runTime: z.number().min(0.5).max(3).optional(),
+  }),
+  z.object({
+    type: z.literal("axes"),
+    runTime: z.number().min(1).max(4).optional(),
+  }),
+  z.object({
+    type: z.literal("plot_line"),
+    slope: z.number().min(-2).max(2).optional(),
+    runTime: z.number().min(1).max(6).optional(),
+  }),
+  z.object({
+    type: z.literal("place_dot"),
+    runTime: z.number().min(0.5).max(3).optional(),
+  }),
+  z.object({
+    type: z.literal("move_dot"),
+    runTime: z.number().min(2).max(8).optional(),
+  }),
+  z.object({
+    type: z.literal("indicate"),
+    runTime: z.number().min(0.5).max(3).optional(),
+  }),
+  z.object({
+    type: z.literal("circumscribe"),
+    runTime: z.number().min(0.5).max(3).optional(),
+  }),
+  z.object({
+    type: z.literal("flash"),
+    runTime: z.number().min(0.5).max(2).optional(),
+  }),
+]);
+export type VideoBeat = z.infer<typeof videoBeatSchema>;
+
+export const videoPlanSchema = z.object({
+  title: z.string(),
+  /** Long enough to cover the full beat sequence (~90–150s). */
+  narration: z.string().min(120),
+  durationSec: z.number().int().min(90).max(180),
+  beats: z.array(videoBeatSchema).min(14).max(22),
+  questions: z
+    .array(
+      z.object({
+        atSec: z.number().int().min(0),
+        question: z.string(),
+        choices: z.array(z.string()).min(2),
+        answerIndex: z.number().int().min(0),
+      })
+    )
+    .min(1)
+    .max(3),
+});
+export type VideoPlan = z.infer<typeof videoPlanSchema>;
+
 export const videoSchema = z.object({
   title: z.string(),
   narration: z.string(),
   manimScene: z.string(),
-  durationSec: z.number().int().min(15).max(240).default(60),
+  durationSec: z.number().int().min(75).max(240).default(120),
   questions: z
     .array(
       z.object({

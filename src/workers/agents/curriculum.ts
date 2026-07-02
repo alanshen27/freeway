@@ -1,4 +1,4 @@
-import { llmJSON } from "@/lib/llm";
+import { llmJSON, planCourseFallback } from "@/lib/llm";
 import { courseBlueprintSchema, type CourseBlueprint } from "@/lib/schemas";
 
 type PlanInput = {
@@ -19,6 +19,8 @@ export async function planCourse(input: PlanInput): Promise<CourseBlueprint> {
     .join("\n");
 
   return llmJSON({
+    task: "planCourse",
+    fallback: planCourseFallback,
     schema: courseBlueprintSchema,
     system:
       "You are a curriculum architect for professional engineering education. " +

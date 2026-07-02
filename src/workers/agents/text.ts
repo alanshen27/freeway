@@ -16,6 +16,7 @@ export async function writeReadingSection(args: {
   goals: string[];
 }): Promise<ReadingContent> {
   return llmJSON({
+    task: "writeReadingSection",
     schema: readingSchema,
     system: READING_SYSTEM,
     prompt: `Course: ${args.courseTitle}
@@ -36,6 +37,7 @@ export async function writeWorksheetSection(args: {
   goals: string[];
 }): Promise<WorksheetContent> {
   return llmJSON({
+    task: "writeWorksheetSection",
     schema: worksheetSchema,
     system:
       "You write practice worksheets in Markdown: numbered problems, short answer " +

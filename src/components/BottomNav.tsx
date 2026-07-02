@@ -4,16 +4,16 @@ import { usePathname } from "next/navigation";
 import {
   Settings,
   MessagesSquare,
-  Plus,
   BookOpen,
   ClipboardList,
+  Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/assignments", label: "Tasks", icon: ClipboardList },
-  { href: "/add", label: "New", icon: Plus },
+  { href: "/house", label: "Room", icon: Home },
   { href: "/feed", label: "Feed", icon: MessagesSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

@@ -1,5 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { env, features } from "@/lib/env";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("storage");
 
 /**
  * Upload a generated video to Supabase Storage and return its public URL.
@@ -29,7 +32,7 @@ export async function uploadVideoToStorage(
     const { data: pub } = admin.storage.from(bucket).getPublicUrl(filename);
     return pub.publicUrl;
   } catch (err) {
-    console.warn("[storage] upload failed:", (err as Error).message);
+    log.warn("upload failed", { filename, contentType }, err);
     return null;
   }
 }

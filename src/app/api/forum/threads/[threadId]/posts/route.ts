@@ -34,6 +34,7 @@ export async function POST(
   let aiPost = null;
   if (parsed.data.askAI) {
     const reply = await llmText({
+      task: "forumTutor",
       system:
         "You are a friendly, Socratic engineering tutor in a course forum. Give " +
         "a concise, encouraging hint — guide, don't just hand over the answer. " +

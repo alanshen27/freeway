@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { awardLearningReward } from "@/lib/gamification/rewards";
 
 const schema = z.object({
   completed: z.boolean().optional(),
@@ -26,6 +27,7 @@ export async function PATCH(
   if (!parsed.success)
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
 
+  const wasComplete = assignment.completedAt !== null;
   const updated = await prisma.assignment.update({
     where: { id: assignmentId },
     data: {
@@ -37,7 +39,13 @@ export async function PATCH(
       }),
     },
   });
-  return NextResponse.json({ assignment: updated });
+
+  let reward = null;
+  if (parsed.data.completed === true && !wasComplete) {
+    reward = await awardLearningReward(user.id, 15);
+  }
+
+  return NextResponse.json({ assignment: updated, reward });
 }
 
 export async function DELETE(

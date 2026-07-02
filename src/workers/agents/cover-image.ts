@@ -14,6 +14,7 @@ async function imagePrompt(
   mock: string
 ): Promise<string> {
   const { prompt } = await llmJSON({
+    task: "imagePrompt",
     schema: promptSchema,
     system,
     prompt: user,
@@ -41,7 +42,7 @@ Return JSON { prompt: string } — one striking scene representing this entire c
   );
 
   return (
-    (await generateImage(prompt, `course-${args.id}`)) ??
+    (await generateImage(prompt, `course-${args.id}`, "generateImage:courseCover")) ??
     (features.serp ? await findStockImage(args.title) : null)
   );
 }
@@ -69,7 +70,7 @@ Return JSON { prompt: string } — one vivid scene that represents this subject.
   );
 
   return (
-    (await generateImage(prompt, `subject-${args.id}`)) ??
+    (await generateImage(prompt, `subject-${args.id}`, "generateImage:subjectCover")) ??
     (features.serp ? await findStockImage(args.title) : null)
   );
 }
@@ -97,7 +98,7 @@ Return JSON { prompt: string } — a single scene illustrating this lesson.`,
   );
 
   return (
-    (await generateImage(prompt, `lesson-${args.id}`)) ??
+    (await generateImage(prompt, `lesson-${args.id}`, "generateImage:lessonCover")) ??
     (features.serp ? await findStockImage(args.title) : null)
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BookOpen, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { courseStatusLabel } from "@/lib/course-labels";
 import { ListRow } from "@/components/layout/Page";
 import { CoverImage } from "@/components/lesson/CoverImage";
 
@@ -40,8 +41,15 @@ export function CourseCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <h3 className="truncate text-sm font-medium">{title}</h3>
-          {status === "GENERATING" && <Badge variant="warn">Generating</Badge>}
-          {status === "DRAFT" && <Badge variant="outline">Draft</Badge>}
+          {courseStatusLabel(status ?? "") === "Generating" && (
+            <Badge variant="warn">Generating</Badge>
+          )}
+          {courseStatusLabel(status ?? "") === "Draft" && (
+            <Badge variant="outline">Draft</Badge>
+          )}
+          {courseStatusLabel(status ?? "") === "Failed" && (
+            <Badge variant="danger">Failed</Badge>
+          )}
         </div>
         <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
           {summary}

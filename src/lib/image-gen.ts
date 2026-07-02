@@ -2,9 +2,13 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import OpenAI from "openai";
 import { env, features, isProd } from "./env";
+import { createLogger } from "./logger";
+import { recordLlmUsage } from "./llm/cost";
+import { modelMapping } from "./llm/models";
 import { uploadVideoToStorage } from "./supabase/storage";
 
 const PUBLIC_DIR = path.join(process.cwd(), "public/generated/images");
+const log = createLogger("image-gen");
 
 let client: OpenAI | null = null;
 function getClient() {
@@ -45,17 +49,19 @@ async function imageBufferFromResponse(
  */
 export async function generateImage(
   prompt: string,
-  filename: string
+  filename: string,
+  task = "generateImage"
 ): Promise<string | null> {
   const openai = getClient();
   if (!openai) {
-    if (isProd && features.llm) {
-      console.warn("[image-gen] OpenAI not configured for images");
+    if (isProd && features.imageGen) {
+      log.warn("OpenAI not configured for images");
     }
     return null;
   }
 
-  const model = env.openaiImageModel;
+  const model = env.openaiImageModel || modelMapping.generateImage.model;
+  const size = modelMapping.generateImage.size;
   const legacyDalle = model === "dall-e-2" || model === "dall-e-3";
 
   try {
@@ -63,9 +69,16 @@ export async function generateImage(
       model,
       prompt: prompt.slice(0, promptLimit(model)),
       n: 1,
-      size: "1024x1024",
+      size,
       ...(legacyDalle ? { response_format: "b64_json" as const } : {}),
       ...(isGptImageModel(model) ? { output_format: "png" as const } : {}),
+    });
+
+    recordLlmUsage({
+      task,
+      provider: "openai-image",
+      model,
+      imageCount: 1,
     });
 
     const buffer = await imageBufferFromResponse(res.data?.[0]);
@@ -80,7 +93,7 @@ export async function generateImage(
     await writeFile(dest, buffer);
     return `/generated/images/${key}`;
   } catch (err) {
-    console.warn("[image-gen]", (err as Error).message);
+    log.warn("image generation failed", { model, filename }, err);
     return null;
   }
 }

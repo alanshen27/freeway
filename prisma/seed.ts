@@ -21,7 +21,7 @@ async function main() {
   if (!user) {
     console.log("Creating demo user…");
     user = await prisma.user.create({
-      data: { name: "Alex", email, xp: 40, streak: 3, onboarded: true },
+      data: { name: "Alex", email, xp: 40, coins: 40, streak: 3, onboarded: true },
     });
     const picks = await prisma.interest.findMany({
       where: { slug: { in: ["software-development", "mechanical", "ai-ml"] } },

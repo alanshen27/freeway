@@ -16,8 +16,13 @@ import { RegenerateCourseButton } from "@/components/course/RegenerateCourseButt
 import { DeleteCourseButton } from "@/components/course/DeleteCourseButton";
 import { GenerationProgress } from "@/components/course/GenerationProgress";
 import { CoverImage } from "@/components/lesson/CoverImage";
-import { Badge } from "@/components/ui/badge";
 import { Page, Breadcrumbs } from "@/components/layout/Page";
+import {
+  courseStatusLabel,
+  formatCategory,
+  formatLevel,
+  heroBadgeClass,
+} from "@/lib/course-labels";
 import { AssignmentRow } from "@/components/assignment/AssignmentRow";
 import { NewAssignmentForm } from "@/components/assignment/NewAssignmentForm";
 
@@ -117,14 +122,15 @@ export default async function CoursePage({
           )}
           <div className="relative p-5 sm:p-8">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-white/15 text-white ring-white/25">
-                {course.level}
-              </Badge>
-              <Badge className="bg-white/15 text-white ring-white/25">
-                {course.category.replace(/_/g, " ")}
-              </Badge>
-              {course.status !== "READY" && (
-                <Badge variant="warn">{course.status.toLowerCase()}</Badge>
+              <span className={heroBadgeClass}>{formatLevel(course.level)}</span>
+              <span className={heroBadgeClass}>{formatCategory(course.category)}</span>
+              {courseStatusLabel(course.status) && (
+                <span className={heroBadgeClass}>
+                  {course.status === "GENERATING" && (
+                    <span className="size-1.5 animate-pulse rounded-full bg-white" />
+                  )}
+                  {courseStatusLabel(course.status)}
+                </span>
               )}
             </div>
             <h1 className="mt-3 max-w-2xl text-xl font-semibold tracking-tight sm:text-2xl">

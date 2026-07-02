@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BookOpen, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatCategory, formatLevel } from "@/lib/course-labels";
 
 type Props = {
   href: string;
@@ -13,14 +14,10 @@ type Props = {
   level?: string;
   category?: string;
   coverImageUrl?: string | null;
+  /** Live generation job progress (polled on courses list). */
+  generationProgress?: number;
+  generationMessage?: string;
 };
-
-function formatCategory(category: string) {
-  return category
-    .toLowerCase()
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (m) => m.toUpperCase());
-}
 
 /** LMS-style course card: cover, badges, progress, footer CTA. */
 export function CourseProgressCard({
@@ -34,6 +31,8 @@ export function CourseProgressCard({
   level,
   category,
   coverImageUrl,
+  generationProgress,
+  generationMessage,
 }: Props) {
   const complete = status === "READY" && (lessonsTotal ?? 0) > 0 && progress === 100;
 
@@ -56,8 +55,8 @@ export function CourseProgressCard({
           </div>
         )}
         {level && (
-          <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-slate-700 shadow-sm">
-            {level}
+          <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-medium text-slate-700 shadow-sm">
+            {formatLevel(level)}
           </span>
         )}
         {complete && (
@@ -84,6 +83,25 @@ export function CourseProgressCard({
         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
           {summary}
         </p>
+
+        {status === "GENERATING" && (
+          <div className="mt-auto space-y-2 pt-4">
+            <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+              <span className="line-clamp-1 pr-2">
+                {generationMessage ?? "Generating course…"}
+              </span>
+              <span className="shrink-0 font-medium text-foreground">
+                {generationProgress ?? 0}%
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+              <div
+                className="h-full rounded-full bg-amber-500 transition-all"
+                style={{ width: `${generationProgress ?? 0}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {status === "READY" && (
           <div className="mt-auto pt-4">

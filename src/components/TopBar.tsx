@@ -1,19 +1,20 @@
 "use client";
-import { useState } from "react";
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Bell, Flame, Zap } from "lucide-react";
+import { Search, Bell, Flame, Zap, Coins } from "lucide-react";
 import { cn, initials } from "@/lib/utils";
 
 type Props = {
   user: { name: string };
   streak: number;
   xp: number;
+  coins: number;
   /** Show an activity dot on the bell (e.g. a course is generating). */
   hasActivity?: boolean;
 };
 
-export function TopBar({ user, streak, xp, hasActivity }: Props) {
+export function TopBar({ user, streak, xp, coins, hasActivity }: Props) {
   const router = useRouter();
   const [q, setQ] = useState("");
 
@@ -35,20 +36,30 @@ export function TopBar({ user, streak, xp, hasActivity }: Props) {
       </form>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <span
-          className="flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700"
-          title="Daily streak"
+        <Link
+          href="/progress#stats"
+          className="flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 transition-colors hover:bg-orange-100"
+          title="View streak and progress"
         >
           <Flame className="size-3.5 text-orange-500" />
           {streak}
-        </span>
-        <span
-          className="flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700"
-          title="Experience points"
+        </Link>
+        <Link
+          href="/progress#stats"
+          className="hidden items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100 sm:flex"
+          title="View XP and progress"
         >
           <Zap className="size-3.5 text-brand-500" />
-          {xp} XP
-        </span>
+          {xp}
+        </Link>
+        <Link
+          href="/shop"
+          className="flex items-center gap-1.5 rounded-full bg-lemon-soft px-2.5 py-1 text-xs font-medium text-lemon transition-colors hover:bg-lemon/20"
+          title="Spend coins in the shop"
+        >
+          <Coins className="size-3.5" />
+          {coins}
+        </Link>
 
         <span className="mx-2 h-5 w-px bg-slate-200" />
 

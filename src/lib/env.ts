@@ -1,10 +1,22 @@
 // Centralized feature flags derived from env. Everything degrades gracefully
 // so the MVP runs end-to-end without external services.
 
+function trimEnv(value: string | undefined): string {
+  return (value ?? "").trim();
+}
+
 export const env = {
-  openaiKey: process.env.OPENAI_API_KEY || "",
+  openaiKey: trimEnv(process.env.OPENAI_API_KEY),
   openaiModel: process.env.OPENAI_MODEL || "gpt-4o-mini",
-  openaiImageModel: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
+  openaiImageModel: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
+  deepseekKey: trimEnv(process.env.DEEPSEEK_API_KEY),
+  deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
+  /** Z.AI (z.ai) — GLM vision; also accepts legacy ZHIPUAI_API_KEY. */
+  zaiKey: trimEnv(process.env.ZAI_API_KEY || process.env.ZHIPUAI_API_KEY),
+  zaiBaseUrl:
+    process.env.ZAI_BASE_URL ||
+    process.env.ZHIPUAI_BASE_URL ||
+    "https://api.z.ai/api/paas/v4",
   redisUrl: process.env.REDIS_URL || "",
   serpKey: process.env.SERPAPI_KEY || "",
   manimEnabled: process.env.MANIM_ENABLED === "1",
@@ -23,9 +35,11 @@ export const isProd = process.env.NODE_ENV === "production";
 const supabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnon);
 
 export const features = {
-  /** Use real OpenAI vs deterministic mock generation. */
-  llm: Boolean(env.openaiKey),
-  /** Generate images with OpenAI DALL·E (same API key). */
+  /** Structured + text generation (DeepSeek). */
+  llm: Boolean(env.deepseekKey),
+  /** Vision QA (ZAI GLM, or OpenAI fallback). */
+  visionLlm: Boolean(env.zaiKey || env.openaiKey),
+  /** Generate images with OpenAI (gpt-image-1). */
   imageGen: Boolean(env.openaiKey),
   /** Use BullMQ + Redis vs inline pipeline execution. */
   queue: Boolean(env.redisUrl),

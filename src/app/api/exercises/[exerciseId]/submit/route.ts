@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { gradeAttempt } from "@/lib/grade";
 import { findSectionForExercise, markSectionComplete } from "@/lib/section-progress";
+import { awardLearningReward } from "@/lib/gamification/rewards";
 
 export async function POST(
   req: Request,
@@ -31,14 +32,12 @@ export async function POST(
   });
 
   if (result.status === "PASSED") {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { xp: { increment: 10 } },
-    });
+    const reward = await awardLearningReward(user.id, 10);
     const section = await findSectionForExercise(exerciseId);
     if (section) {
-      await markSectionComplete(user.id, section.id);
+      await markSectionComplete(user.id, section.id, { skipReward: true });
     }
+    return NextResponse.json({ ...result, reward });
   }
 
   return NextResponse.json(result);

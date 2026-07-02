@@ -59,6 +59,7 @@ export async function writeExercise(args: {
 }): Promise<ExerciseSpec & { type: ExType }> {
   const fallback = mockExercise(args.type, args.lessonTitle);
   const spec = await llmJSON({
+    task: "writeExercise",
     schema: exerciseSchema,
     system:
       "You design a single self-contained, auto-checkable interactive exercise. " +

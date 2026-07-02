@@ -37,6 +37,7 @@ export async function POST(
     .join("\n");
 
   const reply = await llmText({
+    task: "assignmentAssist",
     system:
       "You are an AI teaching assistant helping a learner with a specific course assignment. " +
       "Be concise and practical. Guide with hints and structure rather than doing the work for them. " +

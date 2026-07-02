@@ -98,6 +98,7 @@ export async function reviewImages(args: {
   });
 
   return llmVisionJSON({
+    task: "reviewImages",
     schema: imageReviewSchema,
     system:
       "You QA instructional images by viewing them and judging fit for the lesson. " +

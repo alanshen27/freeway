@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { createLogger } from "@/lib/logger";
 import { writeAssignment } from "@/workers/agents/assignment";
 import type { Assignment, AssignmentType } from "@prisma/client";
+
+const log = createLogger("assignments");
 
 function daysFromNow(days: number) {
   const d = new Date();
@@ -112,7 +115,7 @@ export async function generateDefaultAssignments(courseId: string, userId: strin
       });
     } catch (err) {
       // A failed default assignment shouldn't fail the course.
-      console.error(`[assignments] default ${p.type} failed`, err);
+      log.error(`default ${p.type} failed`, { courseId, type: p.type }, err);
     }
   }
 }

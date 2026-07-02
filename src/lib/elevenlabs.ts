@@ -1,9 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env, features } from "./env";
+import { createLogger } from "./logger";
 import { uploadVideoToStorage } from "./supabase/storage";
 
 const PUBLIC_DIR = path.join(process.cwd(), "public/generated/audio");
+const log = createLogger("elevenlabs");
 
 /**
  * Synthesize narration with ElevenLabs. Returns a public URL (Supabase or local).
@@ -33,7 +35,7 @@ export async function synthesizeSpeech(
       }
     );
     if (!res.ok) {
-      console.warn("[elevenlabs] TTS failed:", res.status, await res.text());
+      log.warn("TTS request failed", { status: res.status, body: await res.text() });
       return null;
     }
 
@@ -46,7 +48,7 @@ export async function synthesizeSpeech(
     await writeFile(dest, buffer);
     return `/generated/audio/${filename}.mp3`;
   } catch (err) {
-    console.warn("[elevenlabs]", (err as Error).message);
+    log.warn("TTS failed", { filename }, err);
     return null;
   }
 }

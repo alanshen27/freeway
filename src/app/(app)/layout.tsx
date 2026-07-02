@@ -27,6 +27,7 @@ export default async function AppLayout({
           user={{ name: user.name }}
           streak={user.streak}
           xp={user.xp}
+          coins={user.coins}
           hasActivity={activeJobs > 0}
         />
         <AppChrome />

@@ -8,6 +8,7 @@ export async function writeQuestionsSection(args: {
   goals: string[];
 }): Promise<QuestionsSection> {
   return llmJSON({
+    task: "writeQuestionsSection",
     schema: questionsSectionSchema,
     system:
       "You write review questions for a professional LMS. Multiple-choice only. JSON only.",

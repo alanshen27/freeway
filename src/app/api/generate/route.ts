@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { features, isProd } from "@/lib/env";
 import { getCurrentUser } from "@/lib/session";
 import { enqueueCourseGeneration } from "@/lib/queue";
+import { withApiLog } from "@/lib/api-log";
 import { careerBySlug } from "@/lib/catalog";
 import type { CourseCategory } from "@prisma/client";
 
@@ -22,6 +23,7 @@ function slugify(s: string) {
 }
 
 export async function POST(req: Request) {
+  return withApiLog("POST /api/generate", {}, async () => {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "No session" }, { status: 401 });
 
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          "AI generation is not configured. Set OPENAI_API_KEY on the server.",
+          "AI generation is not configured. Set DEEPSEEK_API_KEY on the server.",
       },
       { status: 503 }
     );
@@ -82,4 +84,5 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({ courseId: course.id, jobId: job.id, mode });
+  });
 }

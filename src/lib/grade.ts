@@ -449,6 +449,7 @@ async function gradeText(ex: ExerciseLike, answer: unknown): Promise<GradeResult
     };
   }
   const result = await llmJSON({
+    task: "gradeText",
     schema: z.object({ score: z.number(), feedback: z.string() }),
     system:
       "You are a fair, encouraging grader. Grade the answer 0-100 against the " +
