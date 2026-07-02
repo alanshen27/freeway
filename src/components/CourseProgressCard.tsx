@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { BookOpen, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { DeleteCourseButton } from "@/components/course/DeleteCourseButton";
 import { formatCategory, formatLevel } from "@/lib/course-labels";
 
 type Props = {
   href: string;
+  courseId?: string;
+  onDelete?: () => void;
   title: string;
   summary: string;
   progress?: number;
@@ -22,6 +25,8 @@ type Props = {
 /** LMS-style course card: cover, badges, progress, footer CTA. */
 export function CourseProgressCard({
   href,
+  courseId,
+  onDelete,
   title,
   summary,
   progress = 0,
@@ -37,10 +42,21 @@ export function CourseProgressCard({
   const complete = status === "READY" && (lessonsTotal ?? 0) > 0 && progress === 100;
 
   return (
-    <Link
-      href={href}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card transition-all hover:-translate-y-0.5 hover:shadow-md"
-    >
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card transition-all hover:-translate-y-0.5 hover:shadow-md">
+      {courseId && (
+        <div
+          className="absolute right-2 top-2 z-10 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DeleteCourseButton
+            courseId={courseId}
+            redirectTo={null}
+            onDeleted={onDelete}
+            className="rounded-lg bg-white/95 shadow-sm ring-1 ring-black/5 hover:bg-white"
+          />
+        </div>
+      )}
+      <Link href={href} className="flex min-h-0 flex-1 flex-col">
       <div className="relative h-32 overflow-hidden bg-course-gradient">
         {coverImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -60,7 +76,7 @@ export function CourseProgressCard({
           </span>
         )}
         {complete && (
-          <span className="absolute right-3 top-3 flex items-center gap-1 rounded-md bg-mint px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
+          <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-md bg-mint px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
             <CheckCircle2 className="size-3" />
             Completed
           </span>
@@ -137,6 +153,7 @@ export function CourseProgressCard({
           →
         </span>
       </div>
-    </Link>
+      </Link>
+    </div>
   );
 }

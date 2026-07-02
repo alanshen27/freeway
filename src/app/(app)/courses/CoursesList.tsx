@@ -45,6 +45,7 @@ export function CoursesList({
   const [q, setQ] = useState(initialQuery);
   const [filter, setFilter] = useState<Filter>("All");
   const [genStatus, setGenStatus] = useState<Record<string, GenStatus>>({});
+  const [removedIds, setRemovedIds] = useState<Set<string>>(() => new Set());
 
   const hasGenerating = useMemo(
     () => courses.some((c) => c.status === "GENERATING"),
@@ -89,14 +90,19 @@ export function CoursesList({
     };
   }, [hasGenerating]);
 
+  const visible = useMemo(
+    () => courses.filter((c) => !removedIds.has(c.id)),
+    [courses, removedIds]
+  );
+
   const filtered = useMemo(
     () =>
-      courses.filter(
+      visible.filter(
         (c) =>
           c.title.toLowerCase().includes(q.toLowerCase()) &&
           matchesFilter(c, filter)
       ),
-    [courses, q, filter]
+    [visible, q, filter]
   );
 
   return (
@@ -141,6 +147,10 @@ export function CoursesList({
               <CourseProgressCard
                 key={c.id}
                 href={`/courses/${c.id}`}
+                courseId={c.id}
+                onDelete={() =>
+                  setRemovedIds((prev) => new Set(prev).add(c.id))
+                }
                 title={c.title}
                 summary={c.summary}
                 progress={c.progress}
