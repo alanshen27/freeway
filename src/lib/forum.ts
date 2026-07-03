@@ -1,20 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { llmText } from "@/lib/llm";
-import { CAREERS } from "@/lib/catalog";
+import { inferTrackSlug, trackTitle } from "@/lib/track-labels";
 
-/** Stable forum key for a career track (e.g. "introduction-to-physics"). */
-export function inferTrackSlug(title: string): string {
-  const career = CAREERS.find((c) => c.title === title);
-  if (career) return career.slug;
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
-export function trackTitle(trackSlug: string): string {
-  return CAREERS.find((c) => c.slug === trackSlug)?.title ?? trackSlug;
-}
+export { inferTrackSlug, trackTitle };
 
 /** User can participate if they have any course on this track. */
 export async function userHasForumAccess(
@@ -25,6 +13,25 @@ export async function userHasForumAccess(
     where: { ownerId: userId, trackSlug },
   });
   return count > 0;
+}
+
+/** Everyone with a course on this track — candidates for @mentions in the forum. */
+export async function getTrackParticipants(
+  trackSlug: string,
+  excludeUserId?: string
+): Promise<{ id: string; name: string; avatarUrl: string | null }[]> {
+  const courses = await prisma.course.findMany({
+    where: { trackSlug },
+    select: { owner: { select: { id: true, name: true, avatarUrl: true } } },
+  });
+  const byId = new Map<string, { name: string; avatarUrl: string | null }>();
+  for (const c of courses) {
+    byId.set(c.owner.id, { name: c.owner.name, avatarUrl: c.owner.avatarUrl });
+  }
+  if (excludeUserId) byId.delete(excludeUserId);
+  return [...byId.entries()]
+    .map(([id, owner]) => ({ id, name: owner.name, avatarUrl: owner.avatarUrl }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** Resolve the viewer's course id for links within a shared track forum. */

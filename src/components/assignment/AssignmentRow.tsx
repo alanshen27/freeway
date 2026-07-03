@@ -2,20 +2,22 @@ import Link from "next/link";
 import { CheckCircle2, ChevronRight, CalendarDays } from "lucide-react";
 import type { Assignment } from "@prisma/client";
 import { ASSIGNMENT_META, dueInfo } from "@/lib/assignment-meta";
-import { assignmentQuizMarks } from "@/lib/quiz-marks";
+import { assignmentQuizMarks, assignmentMilestoneMarks } from "@/lib/quiz-marks";
 import { cn } from "@/lib/utils";
 
 export function AssignmentRow({
   assignment,
   courseTitle,
+  milestones = [],
 }: {
   assignment: Assignment;
   courseTitle?: string;
+  milestones?: { completedAt: Date | null }[];
 }) {
   const meta = ASSIGNMENT_META[assignment.type];
   const completed = assignment.completedAt !== null;
   const due = dueInfo(assignment.dueAt, completed);
-  const marks = assignmentQuizMarks(assignment);
+  const marks = assignmentQuizMarks(assignment) ?? assignmentMilestoneMarks(assignment, milestones);
 
   return (
     <Link

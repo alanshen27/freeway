@@ -1,39 +1,23 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Search, Bell, Flame, Zap, Coins } from "lucide-react";
-import { cn, initials } from "@/lib/utils";
+import { Flame, Zap, Coins } from "lucide-react";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import { NotificationsMenu } from "@/components/NotificationsMenu";
+import { UserAvatar } from "@/components/UserAvatar";
 
 type Props = {
-  user: { name: string };
+  user: { name: string; avatarUrl?: string | null };
   streak: number;
   xp: number;
   coins: number;
-  /** Show an activity dot on the bell (e.g. a course is generating). */
-  hasActivity?: boolean;
+  /** Unread notifications (unseen generation jobs) — drives the bell dot. */
+  hasUnreadNotifications?: boolean;
 };
 
-export function TopBar({ user, streak, xp, coins, hasActivity }: Props) {
-  const router = useRouter();
-  const [q, setQ] = useState("");
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    router.push(q.trim() ? `/courses?q=${encodeURIComponent(q.trim())}` : "/courses");
-  }
-
+export function TopBar({ user, streak, xp, coins, hasUnreadNotifications }: Props) {
   return (
     <div className="sticky top-0 z-30 hidden h-14 items-center gap-4 border-b border-slate-100 bg-white/90 px-6 backdrop-blur-md lg:flex">
-      <form onSubmit={submit} className="relative w-full max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search your courses…"
-          className="h-9 w-full rounded-lg border-0 bg-slate-100/80 pl-9 pr-3 text-sm text-foreground placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-ring/40"
-        />
-      </form>
+      <GlobalSearch className="w-full max-w-sm" />
 
       <div className="ml-auto flex items-center gap-1.5">
         <Link
@@ -63,26 +47,14 @@ export function TopBar({ user, streak, xp, coins, hasActivity }: Props) {
 
         <span className="mx-2 h-5 w-px bg-slate-200" />
 
-        <Link
-          href="/notifications"
-          aria-label="Notifications"
-          className="relative flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
-        >
-          <Bell className="size-[18px]" />
-          {hasActivity && (
-            <span className="absolute right-2 top-2 size-2 rounded-full bg-orange-500 ring-2 ring-white" />
-          )}
-        </Link>
+        <NotificationsMenu initialHasUnread={hasUnreadNotifications} />
 
         <Link
           href="/settings"
           aria-label="Account settings"
-          className={cn(
-            "flex size-8 items-center justify-center rounded-full bg-course-gradient",
-            "text-[11px] font-semibold text-white transition-opacity hover:opacity-85"
-          )}
+          className="transition-opacity hover:opacity-85"
         >
-          {initials(user.name)}
+          <UserAvatar name={user.name} avatarUrl={user.avatarUrl} />
         </Link>
       </div>
     </div>

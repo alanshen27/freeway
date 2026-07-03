@@ -1,28 +1,45 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ListPanel } from "@/components/layout/Page";
 import { ThreadReply } from "./ThreadReply";
 import { ReplyBox } from "./ReplyBox";
 import type { AiThreadMessage } from "./AiTutorThread";
+import type { ForumAuthorPublic, ForumPromptPostPayload } from "@/lib/forum-types";
+import type { MentionCandidate } from "@/lib/mentions";
 
-type PostShape = {
-  id: string;
-  body: string;
-  isAI: boolean;
-  createdAt: string;
-  editedAt: string | null;
-  author: { name: string };
-};
+type PostShape = ForumPromptPostPayload["post"];
 
-type PromptPost = {
-  id: string;
-  isAuthor: boolean;
-  post: PostShape;
-  aiReply: PostShape | null;
-  aiThread: AiThreadMessage[];
-};
+const POLL_MS = 5000;
+
+function mergeReplies(
+  current: ForumPromptPostPayload[],
+  serverPosts: ForumPromptPostPayload[],
+  tempToRealId: Map<string, string>
+): ForumPromptPostPayload[] {
+  const currentById = new Map(current.map((r) => [r.id, r]));
+  const merged: ForumPromptPostPayload[] = serverPosts.map((sp) => {
+    const local = currentById.get(sp.id);
+    const serverAiThread = sp.aiThread ?? [];
+    const localAiThread = local?.aiThread ?? [];
+    return {
+      ...sp,
+      aiReply: sp.aiReply ?? local?.aiReply ?? null,
+      aiThread: serverAiThread.length > 0 ? serverAiThread : localAiThread,
+    };
+  });
+
+  for (const r of current) {
+    if (!r.id.startsWith("temp-")) continue;
+    const realId = tempToRealId.get(r.id);
+    if (realId && serverPosts.some((s) => s.id === realId)) continue;
+    if (!serverPosts.some((s) => s.id === r.id)) {
+      merged.push(r);
+    }
+  }
+
+  return merged;
+}
 
 function toAiPostShape(aiPost: {
   id: string;
@@ -50,13 +67,14 @@ function toAiPostShape(aiPost: {
 export function ThreadDiscussion({
   threadId,
   posts: serverPosts,
-  authorName,
+  author,
+  mentionables,
 }: {
   threadId: string;
-  posts: PromptPost[];
-  authorName: string;
+  posts: ForumPromptPostPayload[];
+  author: ForumAuthorPublic;
+  mentionables: MentionCandidate[];
 }) {
-  const router = useRouter();
   const [replies, setReplies] = useState(serverPosts);
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(() => new Set());
   const tempToRealId = useRef<Map<string, string>>(new Map());
@@ -87,29 +105,34 @@ export function ThreadDiscussion({
   }, [replies, generatingIds, scrollTick]);
 
   useEffect(() => {
-    setReplies((current) => {
-      const currentById = new Map(current.map((r) => [r.id, r]));
-      const merged: PromptPost[] = serverPosts.map((sp) => {
-        const local = currentById.get(sp.id);
-        return {
-          ...sp,
-          aiReply: sp.aiReply ?? local?.aiReply ?? null,
-          aiThread: sp.aiThread.length > 0 ? sp.aiThread : (local?.aiThread ?? []),
-        };
-      });
-
-      for (const r of current) {
-        if (!r.id.startsWith("temp-")) continue;
-        const realId = tempToRealId.current.get(r.id);
-        if (realId && serverPosts.some((s) => s.id === realId)) continue;
-        if (!serverPosts.some((s) => s.id === r.id)) {
-          merged.push(r);
-        }
-      }
-
-      return merged;
-    });
+    setReplies((current) => mergeReplies(current, serverPosts, tempToRealId.current));
   }, [serverPosts]);
+
+  useEffect(() => {
+    let stop = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    async function poll() {
+      if (stop) return;
+      try {
+        const res = await fetch(`/api/forum/threads/${threadId}`, { cache: "no-store" });
+        if (res.ok && !stop) {
+          const data = (await res.json()) as { posts: ForumPromptPostPayload[] };
+          setReplies((current) => mergeReplies(current, data.posts, tempToRealId.current));
+        }
+      } catch {
+        // ignore transient errors
+      } finally {
+        if (!stop) timer = setTimeout(poll, POLL_MS);
+      }
+    }
+
+    timer = setTimeout(poll, POLL_MS);
+    return () => {
+      stop = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [threadId]);
 
   function setGenerating(postId: string, on: boolean) {
     setGeneratingIds((prev) => {
@@ -129,7 +152,7 @@ export function ThreadDiscussion({
   async function sendReply(body: string, askAI: boolean) {
     stickToBottom.current = true;
     const tempId = `temp-${crypto.randomUUID()}`;
-    const optimistic: PromptPost = {
+    const optimistic: ForumPromptPostPayload = {
       id: tempId,
       isAuthor: true,
       post: {
@@ -138,7 +161,7 @@ export function ThreadDiscussion({
         isAI: false,
         createdAt: new Date().toISOString(),
         editedAt: null,
-        author: { name: authorName },
+        author: { name: author.name, avatarUrl: author.avatarUrl },
       },
       aiReply: null,
       aiThread: [],
@@ -190,15 +213,12 @@ export function ThreadDiscussion({
             if (aiRes.ok) {
               const { aiPost } = await aiRes.json();
               applyAiReply(postId, toAiPostShape(aiPost));
-              router.refresh();
             }
           } finally {
             setGenerating(postId, false);
           }
         })();
       }
-
-      router.refresh();
     } catch {
       setReplies((prev) => prev.filter((r) => r.id !== tempId));
       setGenerating(tempId, false);
@@ -217,7 +237,8 @@ export function ThreadDiscussion({
               <ThreadReply
                 key={p.id}
                 threadId={threadId}
-                authorName={authorName}
+                author={author}
+                mentionables={mentionables}
                 isAuthor={p.isAuthor}
                 post={p.post}
                 aiReply={p.aiReply}
@@ -226,17 +247,24 @@ export function ThreadDiscussion({
                 onRegenerateStart={() => setGenerating(p.id, true)}
                 onRegenerateEnd={() => setGenerating(p.id, false)}
                 onActivity={bumpScroll}
-                onAiReplyUpdated={(aiReply) => {
-                  applyAiReply(p.id, aiReply);
-                  router.refresh();
-                }}
+                onAiReplyUpdated={(aiReply) => applyAiReply(p.id, aiReply)}
+                onDeleted={() =>
+                  setReplies((prev) => prev.filter((r) => r.id !== p.id))
+                }
+                onUpdated={(update) =>
+                  setReplies((prev) =>
+                    prev.map((r) =>
+                      r.id === p.id ? { ...r, post: { ...r.post, ...update } } : r
+                    )
+                  )
+                }
               />
             ))}
           </ListPanel>
         </div>
       )}
 
-      <ReplyBox onSend={sendReply} />
+      <ReplyBox onSend={sendReply} mentionables={mentionables} author={author} />
       <div ref={bottomRef} aria-hidden className="h-0" />
     </>
   );

@@ -1,7 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
 export function DeleteCourseButton({
@@ -18,50 +20,45 @@ export function DeleteCourseButton({
   className?: string;
 }) {
   const router = useRouter();
-  const [confirming, setConfirming] = useState(false);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Confirm state resets after a few seconds if not acted on.
-  useEffect(() => {
-    if (!confirming) return;
-    timer.current = setTimeout(() => setConfirming(false), 4000);
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, [confirming]);
-
-  async function onClick() {
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
+  async function confirmDelete() {
     setBusy(true);
-    const res = await fetch(`/api/courses/${courseId}`, { method: "DELETE" });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/courses/${courseId}`, { method: "DELETE" });
+      if (!res.ok) return;
+      setOpen(false);
       onDeleted?.();
       router.refresh();
       if (redirectTo) router.push(redirectTo);
-      return;
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
-    setConfirming(false);
   }
 
   return (
-    <button
-      type="button"
-      disabled={busy}
-      onClick={onClick}
-      aria-label={confirming ? "Confirm delete course" : "Delete course"}
-      className={cn(
-        "action-danger flex h-8 items-center justify-center gap-1.5 rounded-md text-sm font-medium",
-        confirming ? "px-3" : "w-8",
-        className
-      )}
-    >
-      <Trash2 className="size-4" />
-      {confirming && (busy ? "Deleting…" : "Delete?")}
-    </button>
+    <>
+      <button
+        type="button"
+        aria-label="Delete course"
+        onClick={() => setOpen(true)}
+        className={cn(
+          "action-danger flex size-8 items-center justify-center rounded-md",
+          className
+        )}
+      >
+        <Trash2 className="size-4" />
+      </button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Delete this course?"
+        description="All modules, lessons, assignments, and progress for this course will be permanently removed. This can't be undone."
+        confirmLabel="Delete course"
+        busy={busy}
+        onConfirm={confirmDelete}
+      />
+    </>
   );
 }

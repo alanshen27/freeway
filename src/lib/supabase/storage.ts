@@ -6,7 +6,6 @@ import { env, features } from "@/lib/env";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("storage");
-const LOCAL_SUBMISSIONS_DIR = path.join(process.cwd(), "public/generated/submissions");
 
 /**
  * Upload a generated video to Supabase Storage and return its public URL.
@@ -71,8 +70,43 @@ export async function uploadAssignmentSubmission(args: {
   }
 }
 
-/** Remove a stored submission file (Supabase or local public path). */
-export async function deleteAssignmentSubmission(storagePath: string): Promise<void> {
+/** Derive a storage key from a public URL (local /public path or Supabase). */
+export function storagePathFromPublicUrl(url: string): string | null {
+  if (url.startsWith("/")) return url.replace(/^\//, "");
+  const marker = `/storage/v1/object/public/${env.supabaseVideoBucket}/`;
+  const index = url.indexOf(marker);
+  if (index >= 0) return url.slice(index + marker.length);
+  return null;
+}
+
+/** Upload a profile picture; falls back to /public/generated/avatars. */
+export async function uploadUserAvatar(args: {
+  userId: string;
+  filename: string;
+  data: Buffer;
+  contentType: string;
+}): Promise<{ url: string; storagePath: string } | null> {
+  const safeName = sanitizeFilename(args.filename);
+  const storagePath = `avatars/${args.userId}/${randomUUID()}-${safeName}`;
+
+  const uploaded = await uploadVideoToStorage(storagePath, args.data, args.contentType);
+  if (uploaded) return { url: uploaded, storagePath };
+
+  try {
+    const relDir = path.join("generated/avatars", args.userId);
+    const diskName = `${randomUUID()}-${safeName}`;
+    const dest = path.join(process.cwd(), "public", relDir, diskName);
+    await mkdir(path.dirname(dest), { recursive: true });
+    await writeFile(dest, args.data);
+    return { url: `/${relDir}/${diskName}`, storagePath: `${relDir}/${diskName}` };
+  } catch (err) {
+    log.warn("local avatar save failed", { userId: args.userId }, err);
+    return null;
+  }
+}
+
+/** Remove a stored file (Supabase or local public path). */
+export async function deleteStoredFile(storagePath: string): Promise<void> {
   if (features.supabaseStorage) {
     try {
       const admin = createClient(env.supabaseUrl, env.supabaseServiceRole, {
@@ -91,4 +125,9 @@ export async function deleteAssignmentSubmission(storagePath: string): Promise<v
     storagePath.replace(/^\//, "")
   );
   await unlink(localPath).catch(() => {});
+}
+
+/** @deprecated Use deleteStoredFile */
+export async function deleteAssignmentSubmission(storagePath: string): Promise<void> {
+  return deleteStoredFile(storagePath);
 }

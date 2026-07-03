@@ -98,6 +98,8 @@ model User {
   streak     Int      @default(0)
   coins      Int      @default(0)
   lastActivityAt DateTime?
+  /** Last time the user opened the notifications popover — drives the unread dot. */
+  notificationsSeenAt DateTime?
   badges     Json     @default("[]")
   houseLayout Json    @default("[]")
   inventory  Json     @default("[]")
@@ -289,6 +291,8 @@ model ForumThread {
   exercise   Exercise? @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
   editedAt   DateTime?
+  /** User ids referenced via @mentions in `body` — drives mention notifications. */
+  mentionedUserIds String[] @default([])
 
   posts ForumPost[]
 
@@ -313,6 +317,8 @@ model ForumPost {
   aiSubThread    ForumPost[] @relation("ForumAiSubThread")
   createdAt    DateTime    @default(now())
   editedAt     DateTime?
+  /** User ids referenced via @mentions in `body` — drives mention notifications. */
+  mentionedUserIds String[] @default([])
 }
 
 // Course-level work item: practice set, project, or quiz — AI-generated,

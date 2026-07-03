@@ -14,7 +14,8 @@ import {
   Shield,
 } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
-import { cn, initials } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/UserAvatar";
 
 const mainMenu = [
   { href: "/courses", label: "My courses", icon: BookOpen },
@@ -30,7 +31,7 @@ const accountMenu = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-type UserInfo = { name: string; email?: string | null; isAdmin?: boolean };
+type UserInfo = { name: string; email?: string | null; isAdmin?: boolean; avatarUrl?: string | null };
 
 function NavGroup({
   items,
@@ -90,9 +91,7 @@ function SidebarUserFooter({ user }: { user: UserInfo }) {
               : "hover:bg-slate-100"
           )}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-course-gradient text-[11px] font-semibold text-white">
-            {initials(user.name)}
-          </span>
+          <UserAvatar name={user.name} avatarUrl={user.avatarUrl} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-medium text-slate-800">
               {user.name}

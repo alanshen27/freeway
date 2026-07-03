@@ -12,12 +12,14 @@ export function PageHeader({
   action,
   /** Toolbar only — no title row (use when the page has its own hero heading). */
   toolbar,
+  wide,
 }: {
   title?: string;
   eyebrow?: string;
   backHref?: string;
   action?: React.ReactNode;
   toolbar?: boolean;
+  wide?: boolean;
 }) {
   const router = useRouter();
 
@@ -78,7 +80,7 @@ export function PageHeader({
           </div>
           {action && <div className="shrink-0 pt-1">{action}</div>}
         </div>
-        <div className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-4xl">
+        <div className={cn("mx-auto w-full px-4 sm:px-6 lg:px-8", wide ? "max-w-6xl" : "max-w-4xl")}>
           {eyebrow && (
             <p className="mt-3 text-xs font-medium text-muted-foreground">
               {eyebrow}

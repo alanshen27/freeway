@@ -1,8 +1,14 @@
 import Link from "next/link";
-import { BookOpen, CheckCircle2 } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DeleteCourseButton } from "@/components/course/DeleteCourseButton";
-import { formatCategory, formatLevel } from "@/lib/course-labels";
+import {
+  formatCategory,
+  formatLevel,
+  courseCardStatus,
+  COURSE_CARD_STATUS_BADGE,
+} from "@/lib/course-labels";
+import { cn } from "@/lib/utils";
 
 type Props = {
   href: string;
@@ -42,9 +48,17 @@ export function CourseProgressCard({
   generationMessage,
 }: Props) {
   const complete = status === "READY" && (lessonsTotal ?? 0) > 0 && progress === 100;
+  const cardStatus = courseCardStatus({
+    status: status ?? "READY",
+    progress,
+    lessonsTotal: lessonsTotal ?? 0,
+  });
+  const statusBadge = COURSE_CARD_STATUS_BADGE[cardStatus];
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className={cn("group relative flex flex-col overflow-hidden rounded-2xl border border-border shadow-card transition-all hover:-translate-y-0.5 hover:shadow-md",
+      complete ? "bg-green-100" : "bg-white",
+      status === "GENERATING" ? "bg-amber-100" : "")}>
       {courseId && (
         <div
           className="absolute right-2 top-2 z-10 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
@@ -54,7 +68,7 @@ export function CourseProgressCard({
             courseId={courseId}
             redirectTo={null}
             onDeleted={onDelete}
-            className="rounded-lg bg-white/95 shadow-sm ring-1 ring-black/5 hover:bg-white"
+            className="rounded-lg bg-white/95 shadow-sm ring-1 ring-black/5"
           />
         </div>
       )}
@@ -77,12 +91,6 @@ export function CourseProgressCard({
             {formatLevel(level)}
           </span>
         )}
-        {complete && (
-          <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-md bg-mint px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
-            <CheckCircle2 className="size-3" />
-            Completed
-          </span>
-        )}
       </div>
 
       <div className="flex flex-1 flex-col p-4">
@@ -97,8 +105,7 @@ export function CourseProgressCard({
           </h3>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
             {isTaster && <Badge variant="outline">Taster</Badge>}
-            {status === "GENERATING" && <Badge variant="warn">Generating</Badge>}
-            {status === "FAILED" && <Badge variant="danger">Failed</Badge>}
+            <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
           </div>
         </div>
         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">

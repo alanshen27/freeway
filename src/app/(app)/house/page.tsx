@@ -20,14 +20,14 @@ export default async function HousePage() {
   return (
     <Page wide>
       <PageTitle
-        eyebrow="Gamification"
+        eyebrow="Achievements"
         title="My room"
         description="Decorate your study space with items from the shop."
         action={
-          <Button asChild variant="duoOutline" size="sm">
+          <Button asChild size="sm">
             <Link href="/shop">
               <ShoppingBag className="size-4" />
-              Shop ({fresh.coins} coins)
+              Shop
             </Link>
           </Button>
         }

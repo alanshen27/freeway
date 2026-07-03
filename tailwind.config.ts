@@ -83,8 +83,37 @@ const config: Config = {
           "0%": { transform: "scale(0.96)", opacity: "0" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
+        "pop-out": {
+          "0%": { transform: "scale(1)", opacity: "1" },
+          "100%": { transform: "scale(0.96)", opacity: "0" },
+        },
+        "pop-center": {
+          "0%": {
+            opacity: "0",
+            transform: "translate(-50%, -50%) scale(0.96)",
+          },
+          "100%": {
+            opacity: "1",
+            transform: "translate(-50%, -50%) scale(1)",
+          },
+        },
+        "pop-center-out": {
+          "0%": {
+            opacity: "1",
+            transform: "translate(-50%, -50%) scale(1)",
+          },
+          "100%": {
+            opacity: "0",
+            transform: "translate(-50%, -50%) scale(0.96)",
+          },
+        },
       },
-      animation: { pop: "pop 0.18s ease-out" },
+      animation: {
+        pop: "pop 0.2s ease-out",
+        "pop-out": "pop-out 0.15s ease-in forwards",
+        "pop-center": "pop-center 0.2s ease-out",
+        "pop-center-out": "pop-center-out 0.15s ease-in forwards",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

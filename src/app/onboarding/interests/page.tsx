@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Search } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/SearchField";
 import { INTERESTS } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 
@@ -52,15 +52,12 @@ export default function InterestsPage() {
       <h1 className="font-display text-2xl font-bold tracking-tight">
         What are your interests?
       </h1>
-      <div className="relative mt-6">
-        <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search…"
-          className="pl-11"
-        />
-      </div>
+      <SearchField
+        wrapperClassName="mt-6"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search…"
+      />
 
       <div className="mt-5 flex-1 space-y-2">
         {filtered.map((i) => {

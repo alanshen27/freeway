@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Sparkles,
   Pencil,
@@ -12,14 +11,17 @@ import {
   RefreshCw,
   ChevronDown,
 } from "lucide-react";
-import { Markdown } from "@/components/Markdown";
-import { Textarea } from "@/components/ui/textarea";
+import { ForumMarkdown } from "@/components/forum/ForumMarkdown";
+import { MentionTextarea } from "@/components/forum/MentionTextarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ListRow } from "@/components/layout/Page";
-import { timeAgo, initials, cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/UserAvatar";
+import { timeAgo, cn } from "@/lib/utils";
+import type { ForumAuthorPublic } from "@/lib/forum-types";
 import { AiTutorThread, type AiThreadMessage } from "./AiTutorThread";
+import type { MentionCandidate } from "@/lib/mentions";
 
 type PostShape = {
   id: string;
@@ -27,7 +29,7 @@ type PostShape = {
   isAI: boolean;
   createdAt: string;
   editedAt: string | null;
-  author: { name: string };
+  author: ForumAuthorPublic;
 };
 
 export function ThreadReply({
@@ -35,27 +37,32 @@ export function ThreadReply({
   post,
   aiReply,
   aiThread = [],
-  authorName,
+  author,
   isAuthor,
+  mentionables,
   aiGenerating = false,
   onRegenerateStart,
   onRegenerateEnd,
   onAiReplyUpdated,
   onActivity,
+  onDeleted,
+  onUpdated,
 }: {
   threadId: string;
   post: PostShape;
   aiReply?: PostShape | null;
   aiThread?: AiThreadMessage[];
-  authorName: string;
+  author: ForumAuthorPublic;
   isAuthor: boolean;
+  mentionables: MentionCandidate[];
   aiGenerating?: boolean;
   onRegenerateStart?: () => void;
   onRegenerateEnd?: () => void;
   onAiReplyUpdated?: (aiReply: PostShape) => void;
   onActivity?: () => void;
+  onDeleted?: () => void;
+  onUpdated?: (update: { body: string; editedAt: string | null }) => void;
 }) {
-  const router = useRouter();
   const promptRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(post.body);
@@ -88,8 +95,9 @@ export function ThreadReply({
         setError(typeof json.error === "string" ? json.error : "Failed to save");
         return;
       }
+      const editedAt = new Date().toISOString();
       setEditing(false);
-      router.refresh();
+      onUpdated?.({ body: body.trim(), editedAt });
     } catch {
       setError("Failed to save");
     } finally {
@@ -104,7 +112,7 @@ export function ThreadReply({
         method: "DELETE",
       });
       if (res.ok) {
-        router.refresh();
+        onDeleted?.();
         return;
       }
     } finally {
@@ -140,7 +148,6 @@ export function ThreadReply({
           author: { name: "AI Tutor" },
         });
       }
-      router.refresh();
     } catch {
       setError("Regenerate failed");
     } finally {
@@ -162,9 +169,7 @@ export function ThreadReply({
   return (
     <div className="border-b border-border last:border-0">
       <ListRow className="items-start border-0">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-medium">
-          {initials(post.author.name)}
-        </span>
+        <UserAvatar name={post.author.name} avatarUrl={post.author.avatarUrl} />
         <div
           ref={promptRef}
           className={cn(
@@ -214,9 +219,10 @@ export function ThreadReply({
 
           {editing ? (
             <div className="mt-1.5 space-y-2">
-              <Textarea
+              <MentionTextarea
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={setBody}
+                mentionables={mentionables}
                 className="min-h-20"
                 autoFocus
               />
@@ -286,7 +292,7 @@ export function ThreadReply({
             </div>
           ) : (
             <div className="mt-1.5">
-              <Markdown source={post.body} />
+              <ForumMarkdown source={post.body} />
             </div>
           )}
         </div>
@@ -354,7 +360,7 @@ export function ThreadReply({
                           {aiReply.editedAt && " · regenerated"}
                         </span>
                         <div className="mt-1.5 rounded-lg border border-primary/10 bg-white/80 px-3 py-2 text-sm">
-                          <Markdown source={aiReply.body} />
+                          <ForumMarkdown source={aiReply.body} />
                         </div>
                       </>
                     )
@@ -400,7 +406,7 @@ export function ThreadReply({
                   <AiTutorThread
                     threadId={threadId}
                     promptPostId={post.id}
-                    authorName={authorName}
+                    author={author}
                     isAuthor
                     messages={aiThread}
                     onActivity={onActivity}

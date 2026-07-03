@@ -15,6 +15,7 @@ import { Page, Breadcrumbs, ListPanel } from "@/components/layout/Page";
 import { SECTION_META, isSectionTypeKey } from "@/lib/section-types";
 import { CoverImage } from "@/components/lesson/CoverImage";
 import { RedoLessonButton, RedoSectionButton } from "@/components/lesson/RedoButtons";
+import { MarkLessonCompleteButton } from "@/components/lesson/MarkCompleteButtons";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,7 @@ export default async function LessonHubPage({
   );
   const { done, total } = lessonCompletionCount(lesson.sections, completed);
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const lessonComplete = total > 0 && done === total;
   const next = firstIncompleteSection(lesson.sections, completed);
 
   return (
@@ -100,11 +102,17 @@ export default async function LessonHubPage({
                 {done === 0 ? "Start lesson" : "Continue"}
               </Link>
             )}
-            {done > 0 && (
-              <div className="mt-3 flex justify-center">
-                <RedoLessonButton lessonId={lessonId} />
-              </div>
-            )}
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              {!lessonComplete && total > 0 && (
+                <MarkLessonCompleteButton
+                  lessonId={lessonId}
+                  lessonTitle={lesson.title}
+                  sectionCount={total}
+                  incompleteCount={total - done}
+                />
+              )}
+              {done > 0 && <RedoLessonButton lessonId={lessonId} />}
+            </div>
           </header>
 
           <ListPanel flat className="mt-2">

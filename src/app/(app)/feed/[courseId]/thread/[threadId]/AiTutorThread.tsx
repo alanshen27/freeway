@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, Send, Sparkles } from "lucide-react";
-import { Markdown } from "@/components/Markdown";
+import { ForumMarkdown } from "@/components/forum/ForumMarkdown";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { timeAgo, initials, cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/UserAvatar";
+import { timeAgo, cn } from "@/lib/utils";
+import type { ForumAuthorPublic } from "@/lib/forum-types";
 
 export type AiThreadMessage = {
   id: string;
@@ -14,7 +15,7 @@ export type AiThreadMessage = {
   isAI: boolean;
   createdAt: string;
   editedAt: string | null;
-  author: { name: string };
+  author: ForumAuthorPublic;
 };
 
 function toMessage(post: {
@@ -23,7 +24,7 @@ function toMessage(post: {
   isAI: boolean;
   createdAt: string | Date;
   editedAt?: string | Date | null;
-  author: { name: string };
+  author: ForumAuthorPublic;
 }): AiThreadMessage {
   return {
     id: post.id,
@@ -45,19 +46,18 @@ function toMessage(post: {
 export function AiTutorThread({
   threadId,
   promptPostId,
-  authorName,
+  author,
   isAuthor,
   messages: serverMessages,
   onActivity,
 }: {
   threadId: string;
   promptPostId: string;
-  authorName: string;
+  author: ForumAuthorPublic;
   isAuthor: boolean;
   messages: AiThreadMessage[];
   onActivity?: () => void;
 }) {
-  const router = useRouter();
   const [messages, setMessages] = useState(serverMessages);
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
@@ -83,7 +83,7 @@ export function AiTutorThread({
       isAI: false,
       createdAt: new Date().toISOString(),
       editedAt: null,
-      author: { name: authorName },
+      author,
     };
 
     setBody("");
@@ -116,7 +116,6 @@ export function AiTutorThread({
         toMessage({ ...aiPost, author: { name: "AI Tutor" } }),
       ]);
       onActivity?.();
-      router.refresh();
     } catch {
       setError("Failed to send");
       setMessages((prev) => prev.filter((m) => m.id !== tempHumanId));
@@ -159,12 +158,14 @@ export function AiTutorThread({
                     {timeAgo(msg.createdAt)}
                   </span>
                 </div>
-                <Markdown source={msg.body} />
+                <ForumMarkdown source={msg.body} />
               </div>
               {!msg.isAI && (
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-secondary text-[10px] font-medium">
-                  {initials(msg.author.name)}
-                </span>
+                <UserAvatar
+                  name={msg.author.name}
+                  avatarUrl={msg.author.avatarUrl}
+                  size="xs"
+                />
               )}
             </li>
           ))}

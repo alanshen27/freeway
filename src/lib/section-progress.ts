@@ -229,6 +229,49 @@ export async function findSectionForExercise(exerciseId: string) {
   });
 }
 
+/** Mark every step in a lesson complete for this user. */
+export async function markLessonComplete(userId: string, lessonId: string) {
+  const sections = await prisma.lessonSection.findMany({
+    where: { lessonId },
+    select: { id: true },
+  });
+  if (sections.length === 0) return null;
+
+  const now = new Date();
+  for (const s of sections) {
+    await prisma.sectionProgress.upsert({
+      where: { userId_sectionId: { userId, sectionId: s.id } },
+      create: { userId, sectionId: s.id, completedAt: now },
+      update: { completedAt: now },
+    });
+  }
+  await syncLessonCompleted(lessonId, userId);
+  return { sectionCount: sections.length };
+}
+
+/** Mark every step in a module (subject) complete for this user. */
+export async function markSubjectComplete(userId: string, subjectId: string) {
+  const lessons = await prisma.lesson.findMany({
+    where: { subjectId },
+    select: { id: true, sections: { select: { id: true } } },
+  });
+  const sections = lessons.flatMap((l) => l.sections);
+  if (sections.length === 0) return null;
+
+  const now = new Date();
+  for (const s of sections) {
+    await prisma.sectionProgress.upsert({
+      where: { userId_sectionId: { userId, sectionId: s.id } },
+      create: { userId, sectionId: s.id, completedAt: now },
+      update: { completedAt: now },
+    });
+  }
+  for (const lesson of lessons) {
+    await syncLessonCompleted(lesson.id, userId);
+  }
+  return { lessonCount: lessons.length, sectionCount: sections.length };
+}
+
 /** Remove generated curriculum so a course can be regenerated. Returns subjects removed. */
 export async function clearCourseContent(courseId: string): Promise<number> {
   const deleted = await prisma.subject.deleteMany({ where: { courseId } });

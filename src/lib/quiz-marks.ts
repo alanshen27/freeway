@@ -23,6 +23,20 @@ export function assignmentQuizMarks(
   return `${total} ${total === 1 ? "mark" : "marks"}`;
 }
 
+type MilestoneProgress = { completedAt: Date | null };
+
+/** Milestone tally for practice/project: "2/5" when milestones exist. */
+export function assignmentMilestoneMarks(
+  assignment: Pick<Assignment, "type">,
+  milestones: MilestoneProgress[]
+): string | null {
+  if (assignment.type !== "PRACTICE" && assignment.type !== "PROJECT") return null;
+  const total = milestones.length;
+  if (total === 0) return null;
+  const done = milestones.filter((m) => m.completedAt !== null).length;
+  return `${done}/${total}`;
+}
+
 /** Marks label for lesson QUESTIONS sections. */
 export function sectionQuizMarks(
   sectionType: string,

@@ -2,17 +2,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2, Loader2, X, Check } from "lucide-react";
-import { Markdown } from "@/components/Markdown";
-import { Textarea } from "@/components/ui/textarea";
+import { ForumMarkdown } from "@/components/forum/ForumMarkdown";
+import { MentionTextarea } from "@/components/forum/MentionTextarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { timeAgo, initials } from "@/lib/utils";
+import { UserAvatar } from "@/components/UserAvatar";
+import { timeAgo } from "@/lib/utils";
+import type { ForumAuthorPublic } from "@/lib/forum-types";
+import type { MentionCandidate } from "@/lib/mentions";
 
 export function ThreadPost({
   courseId,
   thread,
   isAuthor,
+  mentionables,
 }: {
   courseId: string;
   thread: {
@@ -21,14 +25,16 @@ export function ThreadPost({
     body: string;
     createdAt: string;
     editedAt: string | null;
-    author: { name: string };
+    author: ForumAuthorPublic;
   };
   isAuthor: boolean;
+  mentionables: MentionCandidate[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(thread.title);
   const [body, setBody] = useState(thread.body);
+  const [editedAt, setEditedAt] = useState(thread.editedAt);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -62,7 +68,7 @@ export function ThreadPost({
         return;
       }
       setEditing(false);
-      router.refresh();
+      setEditedAt(new Date().toISOString());
     } catch {
       setError("Failed to save");
     } finally {
@@ -76,7 +82,6 @@ export function ThreadPost({
       const res = await fetch(`/api/forum/threads/${thread.id}`, { method: "DELETE" });
       if (res.ok) {
         router.push(`/feed/${courseId}`);
-        router.refresh();
         return;
       }
     } finally {
@@ -89,13 +94,11 @@ export function ThreadPost({
     <>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand-50 text-xs font-medium text-brand-700">
-            {initials(thread.author.name)}
-          </span>
+          <UserAvatar name={thread.author.name} avatarUrl={thread.author.avatarUrl} />
           <span className="text-sm font-medium">{thread.author.name}</span>
           <span className="text-xs text-muted-foreground">
             · {timeAgo(thread.createdAt)}
-            {thread.editedAt && !editing && " · edited"}
+            {editedAt && !editing && " · edited"}
           </span>
         </div>
         {isAuthor && !editing && (
@@ -128,9 +131,10 @@ export function ThreadPost({
             maxLength={160}
             placeholder="Title"
           />
-          <Textarea
+          <MentionTextarea
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={setBody}
+            mentionables={mentionables}
             className="min-h-24"
             placeholder="Write your post…"
           />
@@ -157,7 +161,7 @@ export function ThreadPost({
         </div>
       ) : (
         <div className="mt-3">
-          <Markdown source={thread.body} />
+          <ForumMarkdown source={body} />
         </div>
       )}
 

@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/SearchField";
 import { cn } from "@/lib/utils";
 import { CourseProgressCard } from "@/components/CourseProgressCard";
+import { courseCardStatus, courseCardStatusSortOrder } from "@/lib/course-labels";
 
 type C = {
   id: string;
@@ -30,10 +30,11 @@ type Filter = (typeof FILTERS)[number];
 
 function matchesFilter(c: C, f: Filter) {
   if (f === "All") return true;
+  const cardStatus = courseCardStatus(c);
   if (f === "In progress")
-    return c.status === "GENERATING" || (c.progress > 0 && c.progress < 100);
-  if (f === "Completed") return c.lessonsTotal > 0 && c.progress === 100;
-  return c.progress === 0 && c.status !== "GENERATING";
+    return cardStatus === "generating" || cardStatus === "in_progress";
+  if (f === "Completed") return cardStatus === "completed";
+  return cardStatus === "not_started";
 }
 
 export function CoursesList({
@@ -96,15 +97,18 @@ export function CoursesList({
     [courses, removedIds]
   );
 
-  const filtered = useMemo(
-    () =>
-      visible.filter(
-        (c) =>
-          c.title.toLowerCase().includes(q.toLowerCase()) &&
-          matchesFilter(c, filter)
-      ),
-    [visible, q, filter]
-  );
+  const filtered = useMemo(() => {
+    const list = visible.filter(
+      (c) =>
+        c.title.toLowerCase().includes(q.toLowerCase()) &&
+        matchesFilter(c, filter)
+    );
+    return [...list].sort(
+      (a, b) =>
+        courseCardStatusSortOrder(courseCardStatus(a)) -
+        courseCardStatusSortOrder(courseCardStatus(b))
+    );
+  }, [visible, q, filter]);
 
   return (
     <div className="mt-4 space-y-4">
@@ -125,15 +129,12 @@ export function CoursesList({
             </button>
           ))}
         </div>
-        <div className="relative w-full max-w-xs">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search courses…"
-            className="h-9 pl-9"
-          />
-        </div>
+        <SearchField
+          wrapperClassName="w-full max-w-xs"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search courses…"
+        />
       </div>
 
       {filtered.length === 0 ? (

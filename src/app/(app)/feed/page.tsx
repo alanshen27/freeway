@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { MessagesSquare } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { trackTitle, viewerCourseIdForTrack } from "@/lib/forum";
-import { timeAgo, initials } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Page, PageTitle, ListPanel, ListRow } from "@/components/layout/Page";
+import { shapeForumAuthor } from "@/lib/forum-types";
+import { Page, PageTitle } from "@/components/layout/Page";
+import { FeedThreadList } from "@/components/forum/FeedThreadList";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +43,7 @@ export default async function FeedPage() {
       })
     : [];
 
-  const courseIdByTrack = new Map(
+  const courseIdByTrack = Object.fromEntries(
     await Promise.all(
       trackSlugs.map(async (trackSlug) => [
         trackSlug,
@@ -52,6 +51,17 @@ export default async function FeedPage() {
       ] as const)
     )
   );
+
+  const initialThreads = threads.map((t) => ({
+    id: t.id,
+    trackSlug: t.trackSlug,
+    authorId: t.authorId,
+    title: t.title,
+    body: t.body,
+    createdAt: t.createdAt.toISOString(),
+    replyCount: t._count.posts,
+    author: shapeForumAuthor(t.author),
+  }));
 
   return (
     <Page>
@@ -87,40 +97,13 @@ export default async function FeedPage() {
         <p className="mb-3 text-sm font-semibold text-foreground">
           Recent discussions
         </p>
-        {threads.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No discussions yet. Open a course forum to start one.
-          </p>
-        ) : (
-          <ListPanel>
-            {threads.map((t) => {
-              const courseId = courseIdByTrack.get(t.trackSlug);
-              if (!courseId) return null;
-              return (
-                <ListRow key={t.id} href={`/feed/${courseId}/thread/${t.id}`}>
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand-50 text-xs font-medium text-brand-700">
-                    {initials(t.author.name)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {t.author.name} · {timeAgo(t.createdAt)}
-                      </span>
-                      <Badge variant="outline">{trackTitle(t.trackSlug)}</Badge>
-                    </div>
-                    <h3 className="mt-0.5 text-sm font-medium">{t.title}</h3>
-                    <p className="line-clamp-1 text-sm text-muted-foreground">
-                      {t.body}
-                    </p>
-                    <span className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <MessagesSquare className="size-3" /> {t._count.posts} replies
-                    </span>
-                  </div>
-                </ListRow>
-              );
-            })}
-          </ListPanel>
-        )}
+        <FeedThreadList
+          initialThreads={initialThreads}
+          courseIdByTrack={courseIdByTrack}
+          userId={user.id}
+          showTrackBadge
+          emptyMessage="No discussions yet. Open a course forum to start one."
+        />
       </div>
     </Page>
   );

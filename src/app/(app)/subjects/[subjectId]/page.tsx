@@ -14,6 +14,10 @@ import { Page, Breadcrumbs } from "@/components/layout/Page";
 import { SECTION_META, isSectionTypeKey } from "@/lib/section-types";
 import { CoverImage } from "@/components/lesson/CoverImage";
 import { RedoLessonButton, RedoSectionButton } from "@/components/lesson/RedoButtons";
+import {
+  MarkLessonCompleteButton,
+  MarkSubjectCompleteButton,
+} from "@/components/lesson/MarkCompleteButtons";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -48,10 +52,13 @@ export default async function SubjectPage({
   );
   const completed = await getCompletedSectionIds(user?.id, allSectionIds);
   const progressMap = await getSectionProgressMap(user?.id, allSectionIds);
+  const moduleDone =
+    allSectionIds.length > 0 && allSectionIds.every((id) => completed.has(id));
+  const moduleIncomplete = allSectionIds.length - completed.size;
 
   return (
     <div>
-      <PageHeader title={subject.title} eyebrow="Module" backHref={`/courses/${subject.courseId}`} />
+      <PageHeader title={subject.title} eyebrow="Module" backHref={`/courses/${subject.courseId}`} wide={true} />
       <Page wide>
         <Breadcrumbs
           items={[
@@ -80,6 +87,18 @@ export default async function SubjectPage({
               </li>
             ))}
           </ul>
+        )}
+
+        {!moduleDone && allSectionIds.length > 0 && (
+          <div className="mt-5">
+            <MarkSubjectCompleteButton
+              subjectId={subject.id}
+              subjectTitle={subject.title}
+              lessonCount={subject.lessons.length}
+              sectionCount={allSectionIds.length}
+              incompleteCount={moduleIncomplete}
+            />
+          </div>
         )}
 
         <h2 className="mb-4 mt-8 text-sm font-semibold text-foreground">
@@ -150,7 +169,17 @@ export default async function SubjectPage({
                       <Play className="size-3.5" />
                       {done === 0 ? "Start" : lessonComplete ? "Review" : "Resume"}
                     </Link>
-                    {done > 0 && <RedoLessonButton lessonId={lesson.id} />}
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {!lessonComplete && total > 0 && (
+                        <MarkLessonCompleteButton
+                          lessonId={lesson.id}
+                          lessonTitle={lesson.title}
+                          sectionCount={total}
+                          incompleteCount={total - done}
+                        />
+                      )}
+                      {done > 0 && <RedoLessonButton lessonId={lesson.id} />}
+                    </div>
                   </div>
                 </div>
 

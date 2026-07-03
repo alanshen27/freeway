@@ -15,7 +15,7 @@ function toLlmPost(post: {
   id: string;
   body: string;
   isAI: boolean;
-  author: { id: string; name: string };
+  author: { id: string; name: string; avatarUrl?: string | null };
 }) {
   return {
     id: post.id,
@@ -41,11 +41,11 @@ export async function POST(
   const promptPost = await prisma.forumPost.findUnique({
     where: { id: postId },
     include: {
-      author: { select: { id: true, name: true } },
+      author: { select: { id: true, name: true, avatarUrl: true } },
       aiReply: { include: { author: { select: { id: true, name: true } } } },
       thread: {
         include: {
-          author: { select: { id: true, name: true } },
+          author: { select: { id: true, name: true, avatarUrl: true } },
           exercise: true,
         },
       },
@@ -72,18 +72,18 @@ export async function POST(
       body: parsed.data.body,
       aiThreadRootId: rootId,
     },
-    include: { author: { select: { id: true, name: true } } },
+    include: { author: { select: { id: true, name: true, avatarUrl: true } } },
   });
 
   const publicPosts = await prisma.forumPost.findMany({
     where: { threadId, aiThreadRootId: null },
-    include: { author: { select: { id: true, name: true } } },
+    include: { author: { select: { id: true, name: true, avatarUrl: true } } },
     orderBy: { createdAt: "asc" },
   });
 
   const subThreadPosts = await prisma.forumPost.findMany({
     where: { aiThreadRootId: rootId },
-    include: { author: { select: { id: true, name: true } } },
+    include: { author: { select: { id: true, name: true, avatarUrl: true } } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -109,7 +109,7 @@ export async function POST(
       isAI: true,
       aiThreadRootId: rootId,
     },
-    include: { author: { select: { id: true, name: true } } },
+    include: { author: { select: { id: true, name: true, avatarUrl: true } } },
   });
 
   return NextResponse.json({ humanPost, aiPost });

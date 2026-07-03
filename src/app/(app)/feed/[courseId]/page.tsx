@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Plus, ChevronRight } from "lucide-react";
+import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { trackTitle } from "@/lib/forum";
+import { shapeForumAuthor } from "@/lib/forum-types";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { timeAgo, initials } from "@/lib/utils";
-import { Page, ListPanel, ListRow } from "@/components/layout/Page";
+import { Page } from "@/components/layout/Page";
+import { FeedThreadList } from "@/components/forum/FeedThreadList";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +32,18 @@ export default async function CourseForumPage({
     include: { author: true, exercise: true, _count: { select: { posts: true } } },
     orderBy: { createdAt: "desc" },
   });
+
+  const initialThreads = threads.map((t) => ({
+    id: t.id,
+    trackSlug: t.trackSlug,
+    authorId: t.authorId,
+    title: t.title,
+    body: t.body,
+    createdAt: t.createdAt.toISOString(),
+    replyCount: t._count.posts,
+    author: shapeForumAuthor(t.author),
+    exerciseRef: !!t.exercise,
+  }));
 
   return (
     <div>
@@ -60,39 +72,14 @@ export default async function CourseForumPage({
         </Button>
 
         <div className="mt-6">
-          {threads.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center">
-              No discussions yet. Start the first thread for this track.
-            </p>
-          ) : (
-            <ListPanel>
-              {threads.map((t) => (
-                <ListRow key={t.id} href={`/feed/${courseId}/thread/${t.id}`}>
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand-50 text-xs font-medium text-brand-700">
-                    {initials(t.author.name)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {t.author.name} · {timeAgo(t.createdAt)}
-                      </span>
-                      {t.exercise && (
-                        <Badge variant="outline">Exercise ref</Badge>
-                      )}
-                    </div>
-                    <h3 className="mt-0.5 text-sm font-medium">{t.title}</h3>
-                    <p className="line-clamp-1 text-sm text-muted-foreground">
-                      {t.body}
-                    </p>
-                    <span className="mt-1 text-xs text-muted-foreground">
-                      {t._count.posts} replies
-                    </span>
-                  </div>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </ListRow>
-              ))}
-            </ListPanel>
-          )}
+          <FeedThreadList
+            initialThreads={initialThreads}
+            courseId={courseId}
+            userId={user.id}
+            trackSlug={course.trackSlug}
+            showChevron
+            emptyMessage="No discussions yet. Start the first thread for this track."
+          />
         </div>
       </Page>
     </div>

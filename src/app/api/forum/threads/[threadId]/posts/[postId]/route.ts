@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { getTrackParticipants } from "@/lib/forum";
+import { resolveMentions } from "@/lib/mentions";
 
 const schema = z.object({
   body: z.string().min(1),
@@ -21,7 +23,13 @@ export async function PATCH(
 
   const post = await prisma.forumPost.findUnique({
     where: { id: postId },
-    select: { id: true, threadId: true, authorId: true, isAI: true },
+    select: {
+      id: true,
+      threadId: true,
+      authorId: true,
+      isAI: true,
+      thread: { select: { trackSlug: true } },
+    },
   });
   if (!post || post.threadId !== threadId)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -30,9 +38,12 @@ export async function PATCH(
   if (post.isAI)
     return NextResponse.json({ error: "AI replies can't be edited" }, { status: 400 });
 
+  const candidates = await getTrackParticipants(post.thread.trackSlug, user.id);
+  const mentionedUserIds = resolveMentions(parsed.data.body, candidates, user.id);
+
   const updated = await prisma.forumPost.update({
     where: { id: postId },
-    data: { body: parsed.data.body, editedAt: new Date() },
+    data: { body: parsed.data.body, editedAt: new Date(), mentionedUserIds },
   });
 
   return NextResponse.json({ post: updated });

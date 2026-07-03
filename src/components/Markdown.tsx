@@ -1,12 +1,28 @@
+"use client";
+
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeHighlight from "rehype-highlight";
-import rehypeKatex from "rehype-katex";
+import remarkGfmPlugin from "remark-gfm";
+import remarkMathPlugin from "remark-math";
+import rehypeHighlightPlugin from "rehype-highlight";
+import rehypeKatexPlugin from "rehype-katex";
 import type { Components } from "react-markdown";
 import { convertParentheticalMath } from "@/lib/markdown-math";
+import { prepareMentionMarkdown } from "@/lib/mentions";
+import { MentionChip } from "@/components/forum/MentionChip";
 
-const components: Components = {
+function plugin<T extends (...args: never[]) => unknown>(
+  mod: T | { default: T }
+): T {
+  return typeof mod === "function" ? mod : mod.default;
+}
+
+const remarkGfm = plugin(remarkGfmPlugin);
+const remarkMath = plugin(remarkMathPlugin);
+const rehypeHighlight = plugin(rehypeHighlightPlugin);
+const rehypeKatex = plugin(rehypeKatexPlugin);
+
+function buildComponents(mentionBadges: boolean): Components {
+  return {
   h1: ({ children }) => (
     <h1 className="mt-5 text-lg font-semibold first:mt-0">{children}</h1>
   ),
@@ -78,16 +94,26 @@ const components: Components = {
       </figure>
     );
   },
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      className="text-primary underline underline-offset-2"
-      target="_blank"
-      rel="noreferrer"
-    >
-      {children}
-    </a>
-  ),
+  a: ({ href, children }) => {
+    if (typeof href === "string" && href.startsWith("mention:")) {
+      if (mentionBadges) return <MentionChip>{children}</MentionChip>;
+      return (
+        <span className="rounded-md bg-brand-50 px-1 py-0.5 font-medium text-brand-700">
+          {children}
+        </span>
+      );
+    }
+    return (
+      <a
+        href={href}
+        className="text-primary underline underline-offset-2"
+        target="_blank"
+        rel="noreferrer"
+      >
+        {children}
+      </a>
+    );
+  },
   hr: () => <hr className="my-4 border-border" />,
   table: ({ children }) => (
     <div className="my-4 overflow-x-auto rounded-lg border border-border">
@@ -102,26 +128,31 @@ const components: Components = {
   td: ({ children }) => (
     <td className="border-b border-border px-3 py-2">{children}</td>
   ),
-};
+  };
+}
 
 export function Markdown({
   source,
   parentheticalMath = false,
+  mentionBadges = false,
 }: {
   source: string;
   /** Also convert bare (F = ma) style parens to inline LaTeX — for lesson sections. */
   parentheticalMath?: boolean;
+  /** Render @mentions as accent badge chips (forum messages). */
+  mentionBadges?: boolean;
 }) {
   // LaTeX ($...$ / $$...$$) is always parsed via remark-math + rehype-katex,
   // regardless of where Markdown is used (lessons, forum, assignments, chat).
-  const prepared = parentheticalMath ? convertParentheticalMath(source) : source;
+  let prepared = parentheticalMath ? convertParentheticalMath(source) : source;
+  if (mentionBadges) prepared = prepareMentionMarkdown(prepared);
 
   return (
     <div className="prose-lms max-w-none text-foreground">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeHighlight, rehypeKatex]}
-        components={components}
+        components={buildComponents(mentionBadges)}
       >
         {prepared}
       </ReactMarkdown>

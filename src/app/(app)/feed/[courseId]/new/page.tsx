@@ -1,13 +1,14 @@
 "use client";
-import { Suspense, use, useState } from "react";
+import { Suspense, use, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Paperclip } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { MentionTextarea } from "@/components/forum/MentionTextarea";
 import { Badge } from "@/components/ui/badge";
 import { Page, ContentBlock } from "@/components/layout/Page";
+import type { MentionCandidate } from "@/lib/mentions";
 
 function NewThread({ courseId }: { courseId: string }) {
   const router = useRouter();
@@ -16,6 +17,20 @@ function NewThread({ courseId }: { courseId: string }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
+  const [mentionables, setMentionables] = useState<MentionCandidate[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/forum/mentionable?courseId=${encodeURIComponent(courseId)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.participants) setMentionables(data.participants);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
 
   async function submit() {
     setLoading(true);
@@ -47,10 +62,11 @@ function NewThread({ courseId }: { courseId: string }) {
             placeholder="What do you need help with?"
           />
           <label className="mt-4 block text-sm font-medium">Details</label>
-          <Textarea
+          <MentionTextarea
             className="mt-1.5 min-h-32"
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={setBody}
+            mentionables={mentionables}
             placeholder="Describe what you tried and where you got stuck…"
           />
           <Button

@@ -8,7 +8,10 @@ import type { Assignment, Course } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-type WithCourse = Assignment & { course: Course };
+type WithCourse = Assignment & {
+  course: Course;
+  milestones: { completedAt: Date | null }[];
+};
 
 function Group({
   title,
@@ -23,7 +26,12 @@ function Group({
       <h2 className="mb-3 text-sm font-semibold text-foreground">{title}</h2>
       <div className="space-y-2.5">
         {items.map((a) => (
-          <AssignmentRow key={a.id} assignment={a} courseTitle={a.course.title} />
+          <AssignmentRow
+            key={a.id}
+            assignment={a}
+            courseTitle={a.course.title}
+            milestones={a.milestones}
+          />
         ))}
       </div>
     </section>
@@ -36,7 +44,10 @@ export default async function AssignmentsPage() {
 
   const assignments = await prisma.assignment.findMany({
     where: { userId: user.id, status: { not: "FAILED" } },
-    include: { course: true },
+    include: {
+      course: true,
+      milestones: { select: { completedAt: true } },
+    },
     orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
   });
 

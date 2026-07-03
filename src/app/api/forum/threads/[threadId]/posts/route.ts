@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { userHasForumAccess } from "@/lib/forum";
+import { getTrackParticipants, userHasForumAccess } from "@/lib/forum";
+import { resolveMentions } from "@/lib/mentions";
 
 const schema = z.object({
   body: z.string().min(1),
@@ -30,8 +31,11 @@ export async function POST(
   if (!(await userHasForumAccess(user.id, thread.trackSlug)))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const candidates = await getTrackParticipants(thread.trackSlug, user.id);
+  const mentionedUserIds = resolveMentions(parsed.data.body, candidates, user.id);
+
   const post = await prisma.forumPost.create({
-    data: { threadId, authorId: user.id, body: parsed.data.body },
+    data: { threadId, authorId: user.id, body: parsed.data.body, mentionedUserIds },
   });
 
   return NextResponse.json({

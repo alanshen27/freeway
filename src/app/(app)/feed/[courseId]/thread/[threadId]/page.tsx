@@ -3,9 +3,12 @@ import { notFound, redirect } from "next/navigation";
 import { Paperclip } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { userHasForumAccess } from "@/lib/forum";
+import { userHasForumAccess, getTrackParticipants } from "@/lib/forum";
+import { shapeForumPromptPosts, latestForumActivityAt } from "@/lib/forum-thread-posts";
+import { shapeForumAuthor } from "@/lib/forum-types";
 import { PageHeader } from "@/components/PageHeader";
 import { Page, ContentBlock } from "@/components/layout/Page";
+import { MarkForumThreadRead } from "@/components/forum/MarkForumThreadRead";
 import { ThreadPost } from "./ThreadPost";
 import { ThreadDiscussion } from "./ThreadDiscussion";
 
@@ -40,33 +43,21 @@ export default async function ThreadPage({
   if (!thread || thread.trackSlug !== course.trackSlug) notFound();
   if (!(await userHasForumAccess(user.id, thread.trackSlug))) notFound();
 
+  const mentionables = await getTrackParticipants(thread.trackSlug, user.id);
+
   const canLinkExercise =
     thread.exercise &&
     (thread.authorId === user.id || thread.exercise.courseId === courseId);
 
-  const promptPosts = thread.posts.filter((p) => !p.isAI && !p.aiThreadRootId);
-
-  const aiThreadByRoot = new Map<string, typeof thread.posts>();
-  for (const p of thread.posts) {
-    if (!p.aiThreadRootId) continue;
-    const list = aiThreadByRoot.get(p.aiThreadRootId) ?? [];
-    list.push(p);
-    aiThreadByRoot.set(p.aiThreadRootId, list);
-  }
-
-  function shapeAiThread(rootId: string) {
-    return (aiThreadByRoot.get(rootId) ?? []).map((p) => ({
-      id: p.id,
-      body: p.body,
-      isAI: p.isAI,
-      createdAt: p.createdAt.toISOString(),
-      editedAt: p.editedAt?.toISOString() ?? null,
-      author: { name: p.isAI ? "AI Tutor" : p.author.name },
-    }));
-  }
+  const promptPosts = shapeForumPromptPosts(thread, thread.posts, user.id);
+  const activityAt = latestForumActivityAt(thread, thread.posts);
 
   return (
     <div>
+      <MarkForumThreadRead
+        seenAt={activityAt.toISOString()}
+        enabled={thread.authorId === user.id}
+      />
       <PageHeader
         title={thread.title}
         eyebrow="Discussion"
@@ -77,13 +68,14 @@ export default async function ThreadPage({
           <ThreadPost
             courseId={courseId}
             isAuthor={thread.authorId === user.id}
+            mentionables={mentionables}
             thread={{
               id: thread.id,
               title: thread.title,
               body: thread.body,
               createdAt: thread.createdAt.toISOString(),
               editedAt: thread.editedAt?.toISOString() ?? null,
-              author: { name: thread.author.name },
+              author: shapeForumAuthor(thread.author),
             }}
           />
           {thread.exercise &&
@@ -109,33 +101,9 @@ export default async function ThreadPage({
 
         <ThreadDiscussion
           threadId={thread.id}
-          authorName={user.name}
-          posts={promptPosts.map((p) => ({
-            id: p.id,
-            isAuthor: p.authorId === user.id,
-            post: {
-              id: p.id,
-              body: p.body,
-              isAI: false,
-              createdAt: p.createdAt.toISOString(),
-              editedAt: p.editedAt?.toISOString() ?? null,
-              author: { name: p.author.name },
-            },
-            aiReply: p.aiReply
-              ? {
-                  id: p.aiReply.id,
-                  body: p.aiReply.body,
-                  isAI: true,
-                  createdAt: p.aiReply.createdAt.toISOString(),
-                  editedAt: p.aiReply.editedAt?.toISOString() ?? null,
-                  author: { name: p.author.name },
-                }
-              : null,
-            aiThread:
-              p.aiReply && p.authorId === user.id
-                ? shapeAiThread(p.aiReply.id)
-                : [],
-          }))}
+          author={shapeForumAuthor(user)}
+          mentionables={mentionables}
+          posts={promptPosts}
         />
       </Page>
     </div>

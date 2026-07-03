@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import "./globals.css";
 
 const sans = Inter({
@@ -34,7 +35,10 @@ export default function RootLayout({
       <body
         className={`${sans.variable} ${display.variable} ${mono.variable} font-sans antialiased`}
       >
-        <div className="min-h-dvh bg-white text-foreground">{children}</div>
+        <div className="min-h-dvh bg-white text-foreground">
+          {children}
+          <ScrollToTop />
+        </div>
       </body>
     </html>
   );

@@ -25,6 +25,7 @@ import {
 } from "@/lib/course-labels";
 import { AssignmentRow } from "@/components/assignment/AssignmentRow";
 import { NewAssignmentForm } from "@/components/assignment/NewAssignmentForm";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ export default async function CoursePage({
   const assignments = user
     ? await prisma.assignment.findMany({
         where: { courseId, userId: user.id },
+        include: { milestones: { select: { completedAt: true } } },
         orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
       })
     : [];
@@ -215,7 +217,11 @@ export default async function CoursePage({
             ) : (
               <div className="space-y-2.5">
                 {assignments.map((a) => (
-                  <AssignmentRow key={a.id} assignment={a} />
+                  <AssignmentRow
+                    key={a.id}
+                    assignment={a}
+                    milestones={a.milestones}
+                  />
                 ))}
               </div>
             )}
@@ -240,7 +246,9 @@ export default async function CoursePage({
                   <Link
                     key={s.id}
                     href={`/subjects/${s.id}`}
-                    className="group flex items-center gap-4 rounded-xl border border-border bg-white p-4 shadow-card transition-all hover:border-brand-100 hover:shadow-md"
+                    className={cn("group flex items-center gap-4 rounded-xl border border-border p-4 shadow-card transition-all hover:border-brand-100 hover:shadow-md",
+                      moduleComplete ? "bg-green-100" : "bg-white",
+                      course.status === "GENERATING" ? "bg-amber-100" : "")}
                   >
                     {s.imageUrl ? (
                       <CoverImage
