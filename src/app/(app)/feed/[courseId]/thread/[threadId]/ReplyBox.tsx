@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -8,24 +7,28 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ContentBlock } from "@/components/layout/Page";
 import { cn } from "@/lib/utils";
 
-export function ReplyBox({ threadId }: { threadId: string }) {
-  const router = useRouter();
+export function ReplyBox({
+  onSend,
+}: {
+  onSend: (body: string, askAI: boolean) => void | Promise<void>;
+}) {
   const [body, setBody] = useState("");
   const [askAI, setAskAI] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function send() {
+    const text = body.trim();
+    if (!text) return;
+
+    const wantAi = askAI;
+    setBody("");
+    setAskAI(false);
     setLoading(true);
-    const res = await fetch(`/api/forum/threads/${threadId}/posts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body, askAI }),
-    });
-    if (res.ok) {
-      setBody("");
-      router.refresh();
+    try {
+      await onSend(text, wantAi);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (

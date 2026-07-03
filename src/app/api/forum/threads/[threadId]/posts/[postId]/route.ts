@@ -48,12 +48,14 @@ export async function DELETE(
   const { threadId, postId } = await params;
   const post = await prisma.forumPost.findUnique({
     where: { id: postId },
-    select: { id: true, threadId: true, authorId: true },
+    select: { id: true, threadId: true, authorId: true, isAI: true },
   });
   if (!post || post.threadId !== threadId)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (post.authorId !== user.id)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (post.isAI)
+    return NextResponse.json({ error: "AI replies can't be deleted directly" }, { status: 400 });
 
   await prisma.forumPost.delete({ where: { id: postId } });
 

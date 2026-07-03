@@ -5,10 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { userHasForumAccess } from "@/lib/forum";
 import { PageHeader } from "@/components/PageHeader";
-import { Page, ContentBlock, ListPanel } from "@/components/layout/Page";
+import { Page, ContentBlock } from "@/components/layout/Page";
 import { ThreadPost } from "./ThreadPost";
-import { ReplyItem } from "./ReplyItem";
-import { ReplyBox } from "./ReplyBox";
+import { ThreadDiscussion } from "./ThreadDiscussion";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +31,10 @@ export default async function ThreadPage({
     include: {
       author: true,
       exercise: { include: { lesson: true } },
-      posts: { include: { author: true }, orderBy: { createdAt: "asc" } },
+      posts: {
+        include: { author: true, aiReply: { include: { author: true } } },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
   if (!thread || thread.trackSlug !== course.trackSlug) notFound();
@@ -41,6 +43,27 @@ export default async function ThreadPage({
   const canLinkExercise =
     thread.exercise &&
     (thread.authorId === user.id || thread.exercise.courseId === courseId);
+
+  const promptPosts = thread.posts.filter((p) => !p.isAI && !p.aiThreadRootId);
+
+  const aiThreadByRoot = new Map<string, typeof thread.posts>();
+  for (const p of thread.posts) {
+    if (!p.aiThreadRootId) continue;
+    const list = aiThreadByRoot.get(p.aiThreadRootId) ?? [];
+    list.push(p);
+    aiThreadByRoot.set(p.aiThreadRootId, list);
+  }
+
+  function shapeAiThread(rootId: string) {
+    return (aiThreadByRoot.get(rootId) ?? []).map((p) => ({
+      id: p.id,
+      body: p.body,
+      isAI: p.isAI,
+      createdAt: p.createdAt.toISOString(),
+      editedAt: p.editedAt?.toISOString() ?? null,
+      author: { name: p.isAI ? "AI Tutor" : p.author.name },
+    }));
+  }
 
   return (
     <div>
@@ -84,32 +107,36 @@ export default async function ThreadPage({
             ))}
         </ContentBlock>
 
-        {thread.posts.length > 0 && (
-          <div className="mt-6">
-            <p className="mb-3 text-sm font-semibold text-foreground">
-              Replies ({thread.posts.length})
-            </p>
-            <ListPanel>
-              {thread.posts.map((p) => (
-                <ReplyItem
-                  key={p.id}
-                  threadId={thread.id}
-                  isAuthor={p.authorId === user.id}
-                  post={{
-                    id: p.id,
-                    body: p.body,
-                    isAI: p.isAI,
-                    createdAt: p.createdAt.toISOString(),
-                    editedAt: p.editedAt?.toISOString() ?? null,
-                    author: { name: p.author.name },
-                  }}
-                />
-              ))}
-            </ListPanel>
-          </div>
-        )}
-
-        <ReplyBox threadId={thread.id} />
+        <ThreadDiscussion
+          threadId={thread.id}
+          authorName={user.name}
+          posts={promptPosts.map((p) => ({
+            id: p.id,
+            isAuthor: p.authorId === user.id,
+            post: {
+              id: p.id,
+              body: p.body,
+              isAI: false,
+              createdAt: p.createdAt.toISOString(),
+              editedAt: p.editedAt?.toISOString() ?? null,
+              author: { name: p.author.name },
+            },
+            aiReply: p.aiReply
+              ? {
+                  id: p.aiReply.id,
+                  body: p.aiReply.body,
+                  isAI: true,
+                  createdAt: p.aiReply.createdAt.toISOString(),
+                  editedAt: p.aiReply.editedAt?.toISOString() ?? null,
+                  author: { name: p.author.name },
+                }
+              : null,
+            aiThread:
+              p.aiReply && p.authorId === user.id
+                ? shapeAiThread(p.aiReply.id)
+                : [],
+          }))}
+        />
       </Page>
     </div>
   );

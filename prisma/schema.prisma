@@ -296,15 +296,23 @@ model ForumThread {
 }
 
 model ForumPost {
-  id        String      @id @default(cuid())
-  threadId  String
-  thread    ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  body      String      @db.Text
-  isAI      Boolean     @default(false)
-  createdAt DateTime    @default(now())
-  editedAt  DateTime?
+  id           String      @id @default(cuid())
+  threadId     String
+  thread       ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body         String      @db.Text
+  isAI         Boolean     @default(false)
+  /// Human post this AI reply answers (AI posts only).
+  promptPostId String?     @unique
+  promptPost   ForumPost?  @relation("ForumAiReply", fields: [promptPostId], references: [id], onDelete: Cascade)
+  aiReply      ForumPost?  @relation("ForumAiReply")
+  /// Root AI reply for follow-up messages in a private tutor sub-thread.
+  aiThreadRootId String?
+  aiThreadRoot   ForumPost?  @relation("ForumAiSubThread", fields: [aiThreadRootId], references: [id], onDelete: Cascade)
+  aiSubThread    ForumPost[] @relation("ForumAiSubThread")
+  createdAt    DateTime    @default(now())
+  editedAt     DateTime?
 }
 
 // Course-level work item: practice set, project, or quiz — AI-generated,

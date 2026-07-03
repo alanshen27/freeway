@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { llmText } from "@/lib/llm";
 import { userHasForumAccess } from "@/lib/forum";
 
 const schema = z.object({
@@ -24,7 +23,7 @@ export async function POST(
 
   const thread = await prisma.forumThread.findUnique({
     where: { id: threadId },
-    include: { exercise: true },
+    select: { id: true, trackSlug: true },
   });
   if (!thread) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -35,28 +34,8 @@ export async function POST(
     data: { threadId, authorId: user.id, body: parsed.data.body },
   });
 
-  let aiPost = null;
-  if (parsed.data.askAI) {
-    const reply = await llmText({
-      task: "forumTutor",
-      system:
-        "You are a friendly, Socratic engineering tutor in a course forum. Give " +
-        "a concise, encouraging hint — guide, don't just hand over the answer. " +
-        "Reference the exercise if provided.",
-      prompt: `Thread: ${thread.title}\n${thread.body}\nStudent question: ${
-        parsed.data.body
-      }\n${
-        thread.exercise
-          ? `Exercise: ${thread.exercise.title} — ${thread.exercise.prompt}`
-          : ""
-      }`,
-      mock: () =>
-        "Great question! Start by restating what the exercise is asking in your own words, then identify the one quantity you don't yet know. What relationship connects what you have to what you need? Try that and share where you get stuck.",
-    });
-    aiPost = await prisma.forumPost.create({
-      data: { threadId, authorId: user.id, body: reply, isAI: true },
-    });
-  }
-
-  return NextResponse.json({ post, aiPost });
+  return NextResponse.json({
+    post,
+    aiPending: parsed.data.askAI,
+  });
 }
