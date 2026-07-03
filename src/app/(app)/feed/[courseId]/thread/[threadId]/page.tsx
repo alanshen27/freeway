@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Sparkles, Paperclip } from "lucide-react";
+import { Paperclip } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { userHasForumAccess } from "@/lib/forum";
-import { Markdown } from "@/components/Markdown";
 import { PageHeader } from "@/components/PageHeader";
-import { Badge } from "@/components/ui/badge";
-import { timeAgo, initials } from "@/lib/utils";
-import { Page, ContentBlock, ListPanel, ListRow } from "@/components/layout/Page";
+import { Page, ContentBlock, ListPanel } from "@/components/layout/Page";
+import { ThreadPost } from "./ThreadPost";
+import { ReplyItem } from "./ReplyItem";
 import { ReplyBox } from "./ReplyBox";
 
 export const dynamic = "force-dynamic";
@@ -52,18 +51,18 @@ export default async function ThreadPage({
       />
       <Page>
         <ContentBlock>
-          <div className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-md bg-brand-50 text-xs font-medium text-brand-700">
-              {initials(thread.author.name)}
-            </span>
-            <span className="text-sm font-medium">{thread.author.name}</span>
-            <span className="text-xs text-muted-foreground">
-              · {timeAgo(thread.createdAt)}
-            </span>
-          </div>
-          <div className="mt-3">
-            <Markdown source={thread.body} />
-          </div>
+          <ThreadPost
+            courseId={courseId}
+            isAuthor={thread.authorId === user.id}
+            thread={{
+              id: thread.id,
+              title: thread.title,
+              body: thread.body,
+              createdAt: thread.createdAt.toISOString(),
+              editedAt: thread.editedAt?.toISOString() ?? null,
+              author: { name: thread.author.name },
+            }}
+          />
           {thread.exercise &&
             (canLinkExercise ? (
               <Link
@@ -92,31 +91,19 @@ export default async function ThreadPage({
             </p>
             <ListPanel>
               {thread.posts.map((p) => (
-                <ListRow key={p.id} className="items-start">
-                  {p.isAI ? (
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-white">
-                      <Sparkles className="size-4" />
-                    </span>
-                  ) : (
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-medium">
-                      {initials(p.author.name)}
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium">
-                        {p.isAI ? "AI Tutor" : p.author.name}
-                      </span>
-                      {p.isAI && <Badge variant="primary">AI</Badge>}
-                      <span className="text-xs text-muted-foreground">
-                        {timeAgo(p.createdAt)}
-                      </span>
-                    </div>
-                    <div className="mt-1.5">
-                      <Markdown source={p.body} />
-                    </div>
-                  </div>
-                </ListRow>
+                <ReplyItem
+                  key={p.id}
+                  threadId={thread.id}
+                  isAuthor={p.authorId === user.id}
+                  post={{
+                    id: p.id,
+                    body: p.body,
+                    isAI: p.isAI,
+                    createdAt: p.createdAt.toISOString(),
+                    editedAt: p.editedAt?.toISOString() ?? null,
+                    author: { name: p.author.name },
+                  }}
+                />
               ))}
             </ListPanel>
           </div>

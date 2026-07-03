@@ -49,7 +49,7 @@ export default async function CourseForumPage({
         }
       />
       <Page>
-        <p className="text-sm text-muted-foreground text-center">
+        <p className={"text-sm text-muted-foreground " + (threads.length === 0 ? "text-center" : "text-left")}>
           Shared with everyone taking {trackTitle(course.trackSlug)}.
         </p>
         <Button asChild size="sm" className="mb-4 mt-4 sm:hidden">

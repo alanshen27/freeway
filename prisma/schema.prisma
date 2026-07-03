@@ -288,6 +288,7 @@ model ForumThread {
   exerciseId String?
   exercise   Exercise? @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
+  editedAt   DateTime?
 
   posts ForumPost[]
 
@@ -303,6 +304,7 @@ model ForumPost {
   body      String      @db.Text
   isAI      Boolean     @default(false)
   createdAt DateTime    @default(now())
+  editedAt  DateTime?
 }
 
 // Course-level work item: practice set, project, or quiz — AI-generated,
