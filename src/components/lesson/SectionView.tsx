@@ -91,7 +91,10 @@ export function SectionView({
         ) : null}
 
         {section.type === "QUESTIONS" ? (
-          <QuestionsSection data={section.data as QuestionsSectionData} />
+          <QuestionsSection
+            data={section.data as QuestionsSectionData}
+            sectionId={section.id}
+          />
         ) : null}
 
         {section.type === "EXERCISE" ? (

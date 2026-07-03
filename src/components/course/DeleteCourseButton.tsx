@@ -55,10 +55,8 @@ export function DeleteCourseButton({
       onClick={onClick}
       aria-label={confirming ? "Confirm delete course" : "Delete course"}
       className={cn(
-        "flex h-8 items-center justify-center gap-1.5 rounded-md text-sm transition-colors disabled:opacity-50",
-        confirming
-          ? "bg-blush px-3 text-xs font-semibold text-white hover:opacity-90"
-          : "w-8 text-muted-foreground hover:bg-blush-soft hover:text-blush",
+        "action-danger flex h-8 items-center justify-center gap-1.5 rounded-md text-sm font-medium",
+        confirming ? "px-3" : "w-8",
         className
       )}
     >

@@ -227,11 +227,10 @@ export function AdminJobsPanel() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Button
-                      variant="ghost"
+                      variant="dangerGhost"
                       size="sm"
                       disabled={deletingId === j.id}
                       onClick={() => deleteJob(j.id)}
-                      className="text-destructive hover:bg-blush-soft hover:text-blush"
                     >
                       {deletingId === j.id ? (
                         <Loader2 className="size-4 animate-spin" />

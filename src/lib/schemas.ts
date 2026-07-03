@@ -280,6 +280,8 @@ export const assignmentSpecSchema = z.object({
     .max(8)
     .default([]),
   quiz: z.array(quizItemSchema).max(12).default([]),
+  /** Model answers / marking criteria (practice assignments only). */
+  markscheme: z.string().optional(),
 });
 export type AssignmentSpec = z.infer<typeof assignmentSpecSchema>;
 
@@ -287,6 +289,43 @@ export type AssignmentSpec = z.infer<typeof assignmentSpecSchema>;
 export type AssignmentQuizData = {
   items: QuizItem[];
   result?: { score: number; total: number; answers: number[]; submittedAt: string };
+};
+
+/** Learner work + optional markscheme (practice / project assignments). */
+export type AssignmentSubmissionFile = {
+  id: string;
+  name: string;
+  url: string;
+  storagePath: string;
+  size: number;
+  contentType: string;
+  uploadedAt: string;
+};
+
+export type AssignmentWorkData = {
+  work?: string;
+  markscheme?: string;
+  submissions?: AssignmentSubmissionFile[];
+  grade?: AssignmentGrade;
+};
+
+export const assignmentMilestoneGradeSchema = z.object({
+  milestone: z.string(),
+  score: z.number().int().min(0).max(100),
+  met: z.boolean(),
+  feedback: z.string(),
+});
+
+export const assignmentGradeSchema = z.object({
+  overallScore: z.number().int().min(0).max(100),
+  summary: z.string(),
+  milestones: z.array(assignmentMilestoneGradeSchema),
+  strengths: z.array(z.string()).max(5).default([]),
+  improvements: z.array(z.string()).max(5).default([]),
+});
+
+export type AssignmentGrade = z.infer<typeof assignmentGradeSchema> & {
+  gradedAt: string;
 };
 
 export type AssignmentChatMessage = {

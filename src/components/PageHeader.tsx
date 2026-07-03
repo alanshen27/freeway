@@ -49,7 +49,7 @@ export function PageHeader({
           "lg:static lg:border-0 lg:bg-transparent lg:backdrop-blur-none"
         )}
       >
-        <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-8 lg:pt-6 lg:pb-0">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:pt-6 lg:pb-0">
           <div className="flex min-w-0 items-center gap-3">
             {BackControl}
             <BrandLogo href="/courses" compact size="sm" className="lg:hidden" />
@@ -67,7 +67,7 @@ export function PageHeader({
         "lg:static lg:border-0 lg:bg-transparent lg:backdrop-blur-none"
       )}
     >
-      <div className="px-4 py-3 lg:px-8 lg:pb-0 lg:pt-6">
+      <div className="px-4 py-3 sm:px-6 lg:px-8 lg:pb-0 lg:pt-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="mb-3 flex items-center justify-between lg:hidden">
@@ -75,23 +75,25 @@ export function PageHeader({
               <BrandLogo href="/courses" compact size="sm" />
             </div>
             <div className="hidden lg:block">{BackControl}</div>
-            {eyebrow && (
-              <p className="mt-3 text-xs font-medium text-muted-foreground">
-                {eyebrow}
-              </p>
-            )}
-            {title && (
-              <h1
-                className={cn(
-                  "truncate font-semibold tracking-tight text-foreground",
-                  eyebrow ? "mt-1 text-lg sm:text-xl" : "mt-3 text-lg sm:text-xl lg:mt-4"
-                )}
-              >
-                {title}
-              </h1>
-            )}
           </div>
           {action && <div className="shrink-0 pt-1">{action}</div>}
+        </div>
+        <div className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-4xl">
+          {eyebrow && (
+            <p className="mt-3 text-xs font-medium text-muted-foreground">
+              {eyebrow}
+            </p>
+          )}
+          {title && (
+            <h1
+              className={cn(
+                "truncate font-semibold tracking-tight text-foreground",
+                eyebrow ? "mt-1 text-lg sm:text-xl" : "mt-3 text-lg sm:text-xl lg:mt-4"
+              )}
+            >
+              {title}
+            </h1>
+          )}
         </div>
       </div>
     </header>

@@ -224,7 +224,9 @@ model SectionProgress {
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   sectionId   String
   section     LessonSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  completedAt DateTime      @default(now())
+  completedAt DateTime?
+  quizScore   Int?
+  quizTotal   Int?
 
   @@id([userId, sectionId])
 }

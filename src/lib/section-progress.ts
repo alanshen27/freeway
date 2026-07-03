@@ -8,9 +8,37 @@ export async function getCompletedSectionIds(
   if (!userId || sectionIds.length === 0) return new Set();
   const rows = await prisma.sectionProgress.findMany({
     where: { userId, sectionId: { in: sectionIds } },
-    select: { sectionId: true },
+    select: { sectionId: true, completedAt: true },
   });
-  return new Set(rows.map((r) => r.sectionId));
+  return new Set(
+    rows.filter((r) => r.completedAt !== null).map((r) => r.sectionId)
+  );
+}
+
+export async function getSectionProgressMap(
+  userId: string | undefined,
+  sectionIds: string[]
+): Promise<
+  Map<string, { completed: boolean; quizScore: number | null; quizTotal: number | null }>
+> {
+  const map = new Map<
+    string,
+    { completed: boolean; quizScore: number | null; quizTotal: number | null }
+  >();
+  if (!userId || sectionIds.length === 0) return map;
+
+  const rows = await prisma.sectionProgress.findMany({
+    where: { userId, sectionId: { in: sectionIds } },
+    select: { sectionId: true, completedAt: true, quizScore: true, quizTotal: true },
+  });
+  for (const row of rows) {
+    map.set(row.sectionId, {
+      completed: row.completedAt !== null,
+      quizScore: row.quizScore,
+      quizTotal: row.quizTotal,
+    });
+  }
+  return map;
 }
 
 export function firstIncompleteSection<
@@ -67,9 +95,8 @@ export async function getCourseCompletion(
 /** The learner's most recent completed step, for "continue learning". */
 export async function getLastActivity(userId: string | undefined) {
   if (!userId) return null;
-  return prisma.sectionProgress.findFirst({
+  const rows = await prisma.sectionProgress.findMany({
     where: { userId },
-    orderBy: { completedAt: "desc" },
     include: {
       section: {
         include: {
@@ -80,6 +107,11 @@ export async function getLastActivity(userId: string | undefined) {
       },
     },
   });
+  return (
+    rows
+      .filter((r): r is typeof r & { completedAt: Date } => r.completedAt !== null)
+      .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime())[0] ?? null
+  );
 }
 
 async function syncLessonCompleted(lessonId: string, userId: string) {
@@ -99,6 +131,27 @@ async function syncLessonCompleted(lessonId: string, userId: string) {
   return lessonDone;
 }
 
+/** Persist quiz score without marking the section complete. */
+export async function saveSectionQuizScore(
+  userId: string,
+  sectionId: string,
+  score: number,
+  total: number
+) {
+  const section = await prisma.lessonSection.findUnique({
+    where: { id: sectionId },
+    select: { id: true },
+  });
+  if (!section) return null;
+
+  await prisma.sectionProgress.upsert({
+    where: { userId_sectionId: { userId, sectionId } },
+    create: { userId, sectionId, quizScore: score, quizTotal: total },
+    update: { quizScore: score, quizTotal: total },
+  });
+  return { ok: true };
+}
+
 /** Mark a section complete and sync parent lesson when all sections are done. */
 export async function markSectionComplete(
   userId: string,
@@ -113,18 +166,19 @@ export async function markSectionComplete(
 
   const existing = await prisma.sectionProgress.findUnique({
     where: { userId_sectionId: { userId, sectionId } },
+    select: { completedAt: true },
   });
 
   await prisma.sectionProgress.upsert({
     where: { userId_sectionId: { userId, sectionId } },
-    create: { userId, sectionId },
+    create: { userId, sectionId, completedAt: new Date() },
     update: { completedAt: new Date() },
   });
 
   const lessonDone = await syncLessonCompleted(section.lessonId, userId);
 
   let reward: RewardResult | null = null;
-  if (!existing && !opts?.skipReward) {
+  if (!existing?.completedAt && !opts?.skipReward) {
     reward = await awardLearningReward(userId, 5);
   }
 

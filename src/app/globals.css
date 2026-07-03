@@ -70,6 +70,14 @@
   .prose-lms .katex-display {
     @apply my-3 overflow-x-auto;
   }
+
+  /* Log out, delete, remove, clear — red text, no fill, red-200 on hover */
+  .action-danger {
+    @apply bg-transparent text-red-500 transition-colors hover:bg-red-200;
+  }
+  .action-danger:disabled {
+    @apply pointer-events-none opacity-50;
+  }
 }
 
 @layer utilities {

@@ -5,9 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import {
   getCompletedSectionIds,
+  getSectionProgressMap,
   firstIncompleteSection,
   lessonCompletionCount,
 } from "@/lib/section-progress";
+import { sectionQuizMarks } from "@/lib/quiz-marks";
 import { PageHeader } from "@/components/PageHeader";
 import { Page, Breadcrumbs, ListPanel } from "@/components/layout/Page";
 import { SECTION_META, isSectionTypeKey } from "@/lib/section-types";
@@ -35,6 +37,10 @@ export default async function LessonHubPage({
 
   const course = lesson.subject.course;
   const completed = await getCompletedSectionIds(
+    user?.id,
+    lesson.sections.map((s) => s.id)
+  );
+  const progressMap = await getSectionProgressMap(
     user?.id,
     lesson.sections.map((s) => s.id)
   );
@@ -108,6 +114,11 @@ export default async function LessonHubPage({
                 : null;
               const isDone = completed.has(section.id);
               const { Icon } = meta ?? { Icon: Circle };
+              const marks = sectionQuizMarks(
+                section.type,
+                section.data,
+                progressMap.get(section.id)
+              );
 
               return (
                 <div
@@ -139,6 +150,11 @@ export default async function LessonHubPage({
                     <span className="min-w-0 flex-1 text-sm font-medium">
                       {section.title ?? meta?.label ?? section.type}
                     </span>
+                    {marks && (
+                      <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                        {marks}
+                      </span>
+                    )}
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                   </Link>
                   {isDone && <RedoSectionButton sectionId={section.id} />}

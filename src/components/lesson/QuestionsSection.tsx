@@ -5,8 +5,10 @@ import type { QuestionsSectionData } from "@/lib/schemas";
 
 export function QuestionsSection({
   data,
+  sectionId,
 }: {
   data: QuestionsSectionData;
+  sectionId?: string;
 }) {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -14,6 +16,16 @@ export function QuestionsSection({
   const score = data.items.filter(
     (item, i) => answers[i] === item.answerIndex
   ).length;
+
+  async function checkAnswers() {
+    setSubmitted(true);
+    if (!sectionId) return;
+    await fetch(`/api/sections/${sectionId}/quiz-score`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ score, total: data.items.length }),
+    });
+  }
 
   return (
     <div>
@@ -57,7 +69,7 @@ export function QuestionsSection({
           type="button"
           className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white"
           disabled={Object.keys(answers).length < data.items.length}
-          onClick={() => setSubmitted(true)}
+          onClick={checkAnswers}
         >
           Check answers
         </button>

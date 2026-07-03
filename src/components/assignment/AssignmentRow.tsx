@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CheckCircle2, ChevronRight, CalendarDays } from "lucide-react";
 import type { Assignment } from "@prisma/client";
 import { ASSIGNMENT_META, dueInfo } from "@/lib/assignment-meta";
+import { assignmentQuizMarks } from "@/lib/quiz-marks";
 import { cn } from "@/lib/utils";
 
 export function AssignmentRow({
@@ -14,11 +15,15 @@ export function AssignmentRow({
   const meta = ASSIGNMENT_META[assignment.type];
   const completed = assignment.completedAt !== null;
   const due = dueInfo(assignment.dueAt, completed);
+  const marks = assignmentQuizMarks(assignment);
 
   return (
     <Link
       href={`/assignments/${assignment.id}`}
-      className="group flex items-center gap-3 rounded-xl border border-border bg-white p-3.5 shadow-card transition-all hover:border-brand-100 hover:shadow-md"
+      className={cn(
+        "group flex items-center gap-3 rounded-xl border border-border p-3.5 shadow-card transition-all hover:border-brand-100 hover:shadow-md",
+        completed ? "bg-green-100" : "bg-white"
+      )}
     >
       <span
         className={cn(
@@ -35,6 +40,11 @@ export function AssignmentRow({
             {courseTitle ? ` · ${courseTitle}` : ""}
           </span>
           {completed && <CheckCircle2 className="size-3.5 text-mint" />}
+          {marks && (
+            <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+              {marks}
+            </span>
+          )}
         </div>
         <h3
           className={cn(

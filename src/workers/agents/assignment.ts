@@ -5,7 +5,8 @@ import type { AssignmentType } from "@prisma/client";
 const TYPE_BRIEF: Record<AssignmentType, string> = {
   PRACTICE:
     "a practice assignment: a focused set of applied tasks the learner works through. " +
-    "Instructions should list 3-6 concrete tasks with expected outcomes. Include 2-4 milestones. No quiz items.",
+    "Instructions should list 3-6 concrete tasks. Do NOT include expected outcomes. Include 2-4 milestones. No quiz items. " +
+    "Also include a markscheme field: markdown model answers and brief marking notes for each task.",
   PROJECT:
     "a mini project: one realistic build/analysis deliverable that ties multiple course topics together. " +
     "Instructions should cover context, requirements, deliverables, and evaluation criteria. " +
@@ -42,7 +43,7 @@ ${scope}
 
 Create ${TYPE_BRIEF[args.type]}
 
-Return { title, instructions, milestones: [{title, description}], quiz: [{question, choices, answerIndex, explanation}] }.`,
+Return { title, instructions, milestones: [{title, description}], quiz: [...], markscheme?: string }.`,
     mock: () => mockAssignment(args),
   });
 }
@@ -117,5 +118,6 @@ function mockAssignment(args: {
       { title: "Tasks 3–4 complete", description: "Transfer and self-assess." },
     ],
     quiz: [],
+    markscheme: `## Task 1 — Summary\nA strong answer names the core concepts of **${focus}**, explains how they connect, and uses course vocabulary accurately.\n\n## Task 2 — Worked example\nReproduce the main steps from a lesson example; arithmetic or logic should match the taught method.\n\n## Task 3 — Variation\nThe new problem should change one parameter while testing the same principle; solution must be complete.\n\n## Task 4 — Self-assessment\nIdentify a specific weak spot and name the lesson section to revisit.`,
   };
 }

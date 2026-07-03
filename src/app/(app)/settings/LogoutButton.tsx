@@ -11,7 +11,7 @@ export function LogoutButton() {
     router.refresh();
   }
   return (
-    <Button variant="duoOutline" className="w-auto text-red-500 hover:bg-red-200" onClick={logout}>
+    <Button variant="dangerGhost" className="w-auto" onClick={logout}>
       <LogOut className="size-5" /> Log out
     </Button>
   );

@@ -5,8 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import {
   getCompletedSectionIds,
+  getSectionProgressMap,
   lessonCompletionCount,
 } from "@/lib/section-progress";
+import { sectionQuizMarks } from "@/lib/quiz-marks";
 import { PageHeader } from "@/components/PageHeader";
 import { Page, Breadcrumbs } from "@/components/layout/Page";
 import { SECTION_META, isSectionTypeKey } from "@/lib/section-types";
@@ -32,7 +34,7 @@ export default async function SubjectPage({
         orderBy: { order: "asc" },
         include: {
           sections: {
-            select: { id: true, type: true, title: true, order: true },
+            select: { id: true, type: true, title: true, order: true, data: true },
             orderBy: { order: "asc" },
           },
         },
@@ -45,6 +47,7 @@ export default async function SubjectPage({
     l.sections.map((s) => s.id)
   );
   const completed = await getCompletedSectionIds(user?.id, allSectionIds);
+  const progressMap = await getSectionProgressMap(user?.id, allSectionIds);
 
   return (
     <div>
@@ -158,6 +161,11 @@ export default async function SubjectPage({
                       : null;
                     const isDone = completed.has(section.id);
                     const { Icon } = meta ?? { Icon: Circle };
+                    const marks = sectionQuizMarks(
+                      section.type,
+                      section.data,
+                      progressMap.get(section.id)
+                    );
 
                     return (
                       <li key={section.id}>
@@ -195,6 +203,11 @@ export default async function SubjectPage({
                             {meta && (
                               <span className="hidden text-xs text-muted-foreground sm:block">
                                 {meta.shortLabel}
+                              </span>
+                            )}
+                            {marks && (
+                              <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                                {marks}
                               </span>
                             )}
                             <ChevronRight className="size-4 shrink-0 text-muted-foreground" />

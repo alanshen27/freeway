@@ -3,13 +3,16 @@ import { CheckCircle2, CalendarDays } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { ASSIGNMENT_META, dueInfo } from "@/lib/assignment-meta";
-import type { AssignmentQuizData, AssignmentChatMessage } from "@/lib/schemas";
+import type { AssignmentQuizData, AssignmentChatMessage, AssignmentWorkData } from "@/lib/schemas";
 import { PageHeader } from "@/components/PageHeader";
 import { Page, Breadcrumbs } from "@/components/layout/Page";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/Markdown";
 import { MilestoneList } from "@/components/assignment/MilestoneList";
 import { QuizPlayer } from "@/components/assignment/QuizPlayer";
+import { AssignmentWorkPad } from "@/components/assignment/AssignmentWorkPad";
+import { ProjectSubmissionUploader } from "@/components/assignment/ProjectSubmissionUploader";
+import { AssignmentGradePanel } from "@/components/assignment/AssignmentGradePanel";
 import { AssistantPanel } from "@/components/assignment/AssistantPanel";
 import { CompleteButton } from "@/components/assignment/CompleteButton";
 import { cn } from "@/lib/utils";
@@ -40,6 +43,10 @@ export default async function AssignmentPage({
   const quizData =
     assignment.type === "QUIZ"
       ? (assignment.data as AssignmentQuizData | null)
+      : null;
+  const workData =
+    assignment.type === "PRACTICE" || assignment.type === "PROJECT"
+      ? (assignment.data as AssignmentWorkData | null)
       : null;
   const chatLog = (assignment.chatLog as AssignmentChatMessage[]) ?? [];
 
@@ -119,6 +126,38 @@ export default async function AssignmentPage({
                 <QuizPlayer assignmentId={assignment.id} data={quizData} />
               </div>
             ) : null}
+
+            {(assignment.type === "PRACTICE" || assignment.type === "PROJECT") && (
+              <AssignmentWorkPad
+                assignmentId={assignment.id}
+                initialWork={workData?.work ?? ""}
+                markscheme={
+                  assignment.type === "PRACTICE" ? workData?.markscheme : undefined
+                }
+              />
+            )}
+
+            {(assignment.type === "PRACTICE" || assignment.type === "PROJECT") && (
+              <ProjectSubmissionUploader
+                assignmentId={assignment.id}
+                initialFiles={workData?.submissions ?? []}
+                heading={
+                  assignment.type === "PRACTICE" ? "Attach work (optional)" : "Project submission"
+                }
+                description={
+                  assignment.type === "PRACTICE"
+                    ? "Upload photos of handwritten work, scanned pages, or files to support grading."
+                    : "PDF, documents, archives, images, code, or other deliverables for your project."
+                }
+              />
+            )}
+
+            {(assignment.type === "PRACTICE" || assignment.type === "PROJECT") && (
+              <AssignmentGradePanel
+                assignmentId={assignment.id}
+                initialGrade={workData?.grade ?? null}
+              />
+            )}
 
             <div className="mt-8">
               <AssistantPanel

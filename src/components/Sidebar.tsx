@@ -103,9 +103,10 @@ function SidebarUserFooter({ user }: { user: UserInfo }) {
           </div>
         </Link>
         <button
+          type="button"
           onClick={logout}
           aria-label="Log out"
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-red-500 transition-colors hover:bg-red-200"
+          className="action-danger flex size-8 shrink-0 items-center justify-center rounded-md"
         >
           <LogOut className="size-4" />
         </button>

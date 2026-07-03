@@ -2,8 +2,25 @@ import { prisma } from "@/lib/prisma";
 import { createLogger } from "@/lib/logger";
 import { writeAssignment } from "@/workers/agents/assignment";
 import type { Assignment, AssignmentType } from "@prisma/client";
+import type { AssignmentSpec } from "@/lib/schemas";
 
 const log = createLogger("assignments");
+
+function assignmentDataFromSpec(type: AssignmentType, spec: AssignmentSpec) {
+  if (type === "QUIZ" && spec.quiz.length) {
+    return { items: spec.quiz };
+  }
+  if (type === "PRACTICE") {
+    return {
+      work: "",
+      ...(spec.markscheme ? { markscheme: spec.markscheme } : {}),
+    };
+  }
+  if (type === "PROJECT") {
+    return { work: "" };
+  }
+  return undefined;
+}
 
 function daysFromNow(days: number) {
   const d = new Date();
@@ -61,7 +78,7 @@ export async function createAssignment(opts: {
         title: spec.title,
         instructions: spec.instructions,
         status: "READY",
-        data: spec.quiz.length ? { items: spec.quiz } : undefined,
+        data: assignmentDataFromSpec(opts.type, spec) as object | undefined,
         milestones: spec.milestones.length
           ? {
               create: spec.milestones.map((m, i) => ({

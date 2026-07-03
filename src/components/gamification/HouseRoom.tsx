@@ -116,7 +116,7 @@ export function HouseRoom({
           </Button>
           <Button
             type="button"
-            variant="duoOutline"
+            variant="dangerGhost"
             size="sm"
             onClick={() => setLayout([])}
           >

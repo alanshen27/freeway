@@ -222,7 +222,7 @@ export function LogicCircuitExercise({
               <button
                 type="button"
                 onClick={() => removeGate(i)}
-                className="text-muted-foreground hover:text-blush"
+                className="action-danger rounded-md p-1"
                 aria-label={`Remove gate ${i + 1}`}
               >
                 <Trash2 className="size-3.5" />
