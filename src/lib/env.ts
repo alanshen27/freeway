@@ -11,6 +11,10 @@ export const env = {
   openaiImageModel: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
   deepseekKey: trimEnv(process.env.DEEPSEEK_API_KEY),
   deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
+  /** DeepSeek /beta — strict tool-call JSON schema (default: {DEEPSEEK_BASE_URL}/beta). */
+  deepseekBetaBaseUrl:
+    process.env.DEEPSEEK_BETA_BASE_URL ||
+    `${(process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "")}/beta`,
   /** Z.AI (z.ai) — GLM vision; also accepts legacy ZHIPUAI_API_KEY. */
   zaiKey: trimEnv(process.env.ZAI_API_KEY || process.env.ZHIPUAI_API_KEY),
   zaiBaseUrl:
@@ -37,6 +41,8 @@ const supabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnon);
 export const features = {
   /** Structured + text generation (DeepSeek). */
   llm: Boolean(env.deepseekKey),
+  /** llmJSON uses DeepSeek strict tool calls by default; set DEEPSEEK_STRICT_TOOLS=0 to disable. */
+  deepseekStrictTools: process.env.DEEPSEEK_STRICT_TOOLS !== "0",
   /** Vision QA (ZAI GLM, or OpenAI fallback). */
   visionLlm: Boolean(env.zaiKey || env.openaiKey),
   /** Generate images with OpenAI (gpt-image-1). */

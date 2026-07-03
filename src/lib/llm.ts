@@ -14,6 +14,10 @@ import {
   resolveChatConfig,
   resolveVisionConfig,
 } from "./llm/providers";
+import {
+  runStrictToolCompletion,
+  strictToolsEnabled,
+} from "./llm/structured-output";
 
 const log = createLogger("llm");
 
@@ -180,6 +184,33 @@ async function runJsonCompletion<T>(args: {
   return { error: lastError };
 }
 
+async function runStructuredCompletion<T>(args: {
+  config: ChatModelConfig;
+  task: string;
+  system: string;
+  prompt: string;
+  schema: z.ZodTypeAny;
+  maxAttempts: number;
+}): Promise<{ data: T } | { error: string }> {
+  if (strictToolsEnabled(args.config)) {
+    const strict = await runStrictToolCompletion<T>({
+      config: args.config,
+      task: args.task,
+      system: args.system,
+      prompt: args.prompt,
+      schema: args.schema,
+    });
+    if ("data" in strict) return strict;
+    if (!strict.schemaRejected) {
+      log.warn("strict tool call failed", { task: args.task, error: strict.error });
+      return runJsonCompletion<T>({ ...args, maxAttempts: Math.min(2, args.maxAttempts) });
+    }
+    log.info("strict schema rejected by API, falling back to json_object", { task: args.task });
+  }
+
+  return runJsonCompletion<T>(args);
+}
+
 function hasJsonLlm(): boolean {
   const cfg = modelMapping.llmJSON;
   return isChatProviderConfigured(cfg) || isChatProviderConfigured(planCourseFallback);
@@ -203,7 +234,7 @@ export async function llmJSON<T>({
   }
 
   const primary = resolveChatConfig(modelMapping.llmJSON, model);
-  let result = await runJsonCompletion<T>({
+  let result = await runStructuredCompletion<T>({
     config: primary,
     task,
     system,
@@ -213,7 +244,7 @@ export async function llmJSON<T>({
   });
 
   if ("error" in result && fallback && isChatProviderConfigured(fallback)) {
-    result = await runJsonCompletion<T>({
+    result = await runStructuredCompletion<T>({
       config: fallback,
       task: `${task}:fallback`,
       system,

@@ -41,6 +41,24 @@ export function getProviderClient(provider: LlmProvider): OpenAI | null {
   return created;
 }
 
+let betaClient: OpenAI | null | undefined;
+
+/** DeepSeek /beta client — required for strict tool-call schema enforcement. */
+export function getDeepSeekBetaClient(): OpenAI | null {
+  if (betaClient !== undefined) return betaClient;
+  if (!env.deepseekKey) {
+    betaClient = null;
+    return null;
+  }
+  betaClient = new OpenAI({
+    apiKey: env.deepseekKey,
+    baseURL: env.deepseekBetaBaseUrl,
+    timeout: 120_000,
+    maxRetries: 2,
+  });
+  return betaClient;
+}
+
 export function resolveChatConfig(
   base: ChatModelConfig,
   override?: ChatModelConfig

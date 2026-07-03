@@ -5,9 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { getCompletedSectionIds } from "@/lib/section-progress";
 import { PageHeader } from "@/components/PageHeader";
-import { Page, Breadcrumbs } from "@/components/layout/Page";
-import { SectionView } from "@/components/lesson/SectionView";
-import { SectionFooter } from "@/components/lesson/SectionFooter";
+import { Page, PageNavRow } from "@/components/layout/Page";
+import { SectionStep } from "@/components/lesson/SectionStep";
 
 export const dynamic = "force-dynamic";
 
@@ -48,32 +47,30 @@ export default async function SectionPage({
   const isDone = completed.has(sectionId);
   const nextHref = next
     ? `/lessons/${lessonId}/sections/${next.id}`
-    : `/lessons/${lessonId}`;
+    : `/subjects/${lesson.subjectId}`;
 
   return (
     <div>
-      <PageHeader toolbar backHref={`/lessons/${lessonId}`} />
-      <Page className="mx-auto max-w-4xl py-5 sm:py-8">
-        <Breadcrumbs
+      <PageHeader toolbar prose backInNav backHref={`/subjects/${lesson.subjectId}`} />
+      <Page prose>
+        <PageNavRow
+          backHref={`/subjects/${lesson.subjectId}`}
           items={[
             { label: course.title, href: `/courses/${course.id}` },
             { label: lesson.subject.title, href: `/subjects/${lesson.subjectId}` },
-            { label: lesson.title, href: `/lessons/${lessonId}` },
+            { label: lesson.title, href: `/lessons/${lessonId}/continue` },
           ]}
           className="mb-5"
         />
 
-        <SectionView
+        <SectionStep
           section={section}
           videos={lesson.videos}
           exercises={lesson.exercises}
           courseId={course.id}
           stepLabel={`Step ${sectionIndex + 1} of ${lesson.sections.length}`}
-        />
-
-        <SectionFooter
-          sectionId={section.id}
           lessonId={lesson.id}
+          exitHref={`/subjects/${lesson.subjectId}`}
           nextHref={nextHref}
           completed={isDone}
         />

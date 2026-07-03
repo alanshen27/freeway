@@ -1,5 +1,6 @@
 import type { Assignment } from "@prisma/client";
 import type { AssignmentQuizData, QuestionsSectionData } from "@/lib/schemas";
+import { sectionTotalMarks } from "@/lib/questions";
 
 export type SectionQuizProgress = {
   completed: boolean;
@@ -45,7 +46,7 @@ export function sectionQuizMarks(
 ): string | null {
   if (sectionType !== "QUESTIONS") return null;
   const data = sectionData as QuestionsSectionData;
-  const total = data?.items?.length ?? 0;
+  const total = sectionTotalMarks(data?.items ?? []);
   if (total === 0) return null;
 
   if (

@@ -21,7 +21,7 @@ export default async function LessonContinuePage({
     include: { sections: { orderBy: { order: "asc" } } },
   });
   if (!lesson) notFound();
-  if (lesson.sections.length === 0) redirect(`/lessons/${lessonId}`);
+  if (lesson.sections.length === 0) redirect(`/subjects/${lesson.subjectId}`);
 
   const completed = await getCompletedSectionIds(
     user?.id,

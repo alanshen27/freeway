@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ChevronRight,
-  MessagesSquare,
+  ArrowUpLeft,
   BookOpen,
   Play,
   CheckCircle2,
@@ -26,6 +26,7 @@ import {
 import { AssignmentRow } from "@/components/assignment/AssignmentRow";
 import { NewAssignmentForm } from "@/components/assignment/NewAssignmentForm";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +88,7 @@ export default async function CoursePage({
     <div>
       <PageHeader
         toolbar
+        wide
         backHref="/courses"
         action={
           <div className="flex items-center gap-2">
@@ -94,13 +96,12 @@ export default async function CoursePage({
               courseId={course.id}
               disabled={course.status === "GENERATING"}
             />
-            <Link
-              href={`/feed/${course.id}`}
-              aria-label="Forum"
-              className="flex size-8 items-center justify-center rounded-md hover:bg-secondary"
-            >
-              <MessagesSquare className="size-5" />
-            </Link>
+            <Button asChild variant="duoOutline" size="sm">
+              <Link href={`/feed/${course.id}`}>
+                <ArrowUpLeft className="size-4" />
+                Forum
+              </Link>
+            </Button>
             <DeleteCourseButton courseId={course.id} />
           </div>
         }

@@ -6,6 +6,7 @@ import {
   saveCheckpoint,
 } from "@/lib/generation-checkpoint";
 import { createWorkerLogger, type WorkerLogger } from "@/lib/worker-log";
+import { scaleForCourse } from "@/lib/course-scale";
 import type { CourseBlueprint, SubjectBlueprint } from "@/lib/schemas";
 import { planCourse } from "./agents/curriculum";
 import { planSubjectLessons } from "./agents/subject";
@@ -168,6 +169,7 @@ async function runCourseGenerationInner(
       level: course.level,
       interests: course.owner.interests.map((i) => i.interest.label),
       responses: responses.map((r) => ({ prompt: r.prompt, answer: r.answer })),
+      durationWeeks: course.durationWeeks,
       isTaster: course.isTaster,
     };
 
@@ -182,10 +184,13 @@ async function runCourseGenerationInner(
         lessons: subjectPlans.reduce((n, p) => n + p.lessons.length, 0),
       });
     } else {
+      pipelineLog.info("course scale", {
+        ...scaleForCourse({ durationWeeks: course.durationWeeks, isTaster: course.isTaster }),
+      });
       blueprint = await pipelineLog.timed("plan course", () => planCourse(planInput));
       subjectPlans = await pipelineLog.timed("plan subject lessons", () =>
         Promise.all(
-          blueprint.subjects.map((s) =>
+          blueprint.subjects.map((s, si) =>
             planSubjectLessons({
               courseTitle: blueprint.title,
               subjectTitle: s.title,
@@ -193,6 +198,9 @@ async function runCourseGenerationInner(
               goals: s.goals,
               category: course.category,
               level: blueprint.level,
+              durationWeeks: course.durationWeeks,
+              moduleIndex: si,
+              moduleCount: blueprint.subjects.length,
               isTaster: course.isTaster,
             })
           )
@@ -371,6 +379,8 @@ async function runCourseGenerationInner(
               subjectTitle: s.title,
               lessonTitle: lp.title,
               goals: s.goals,
+              isTaster: course.isTaster,
+              durationWeeks: course.durationWeeks,
             };
 
             await Promise.all(
@@ -521,6 +531,8 @@ async function generateSection(args: {
     subjectTitle: string;
     lessonTitle: string;
     goals: string[];
+    isTaster?: boolean;
+    durationWeeks?: number;
   };
   order: number;
   onComplete?: () => Promise<void>;
@@ -550,17 +562,20 @@ async function generateSection(args: {
       const draft = await writeWorksheetSection(ctx);
       await assertActiveJob(jobId);
       await assertLesson(lessonId);
+      const intro =
+        draft.intro.trim() ||
+        `## Worksheet: ${sec.title ?? "Worksheet"}\n\nComplete each problem below.`;
       const built =
         draft.images.length > 0
-          ? await buildDocumentWithImages(draft.markdown, draft.images, lessonId)
-          : { markdown: draft.markdown, images: [] };
+          ? await buildDocumentWithImages(intro, draft.images, lessonId)
+          : { markdown: intro, images: [] };
       await prisma.lessonSection.create({
         data: {
           lessonId,
           type: "WORKSHEET",
           title: sec.title ?? "Worksheet",
           order,
-          data: built as object,
+          data: { ...built, intro: built.markdown, items: draft.items } as object,
         },
       });
       break;
@@ -585,6 +600,8 @@ async function generateSection(args: {
         courseTitle: ctx.courseTitle,
         lessonTitle: ctx.lessonTitle,
         concepts: ctx.goals,
+        isTaster: ctx.isTaster,
+        durationWeeks: ctx.durationWeeks,
       });
       const renderId = `vid-${lessonId}-${order}`;
       const rendered = await renderManimWithRetries(

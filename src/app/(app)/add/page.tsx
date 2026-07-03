@@ -35,7 +35,7 @@ const COURSE_FORMATS = [
     id: "full" as const,
     label: "Full course",
     blurb: "Complete program",
-    detail: "Multiple subjects, lessons, exercises, and assignments paced to your schedule",
+    detail: "12 modules+, all exercise types, long-form videos — paced to your schedule",
     icon: GraduationCap,
   },
   {

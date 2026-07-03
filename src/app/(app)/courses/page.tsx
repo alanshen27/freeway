@@ -67,7 +67,7 @@ export default async function CoursesPage({
   const firstName = user.name.split(" ")[0];
 
   return (
-    <Page wide className="pt-4 lg:pt-6">
+    <Page wide>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium text-muted-foreground">Dashboard</p>

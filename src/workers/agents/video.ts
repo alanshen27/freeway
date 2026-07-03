@@ -1,4 +1,5 @@
 import { llmJSON, llmText } from "@/lib/llm";
+import { scaleForCourse } from "@/lib/course-scale";
 import { videoBeatPlanSchema, type VideoBeat, type VideoSpec } from "@/lib/schemas";
 import { getManimRenderEnvironment, manimLlmPreamble } from "@/workers/render/manim-env";
 import {
@@ -14,10 +15,18 @@ export async function writeVideo(args: {
   courseTitle: string;
   lessonTitle: string;
   concepts: string[];
+  isTaster?: boolean;
+  durationWeeks?: number;
 }): Promise<VideoSpec> {
   const concepts = args.concepts.filter(Boolean);
-  const conceptLine = concepts.slice(0, 3).join("; ");
+  const conceptLine = concepts.slice(0, 4).join("; ");
   const renderEnv = await getManimRenderEnvironment();
+  const scale = scaleForCourse({
+    durationWeeks: args.durationWeeks ?? 8,
+    isTaster: args.isTaster,
+  });
+  const { min: durMin, max: durMax } = scale.videoDurationSec;
+  const { min: beatMin, max: beatMax } = scale.videoBeatCount;
 
   const plan = await llmJSON({
     task: "planVideoBeats",
@@ -35,21 +44,28 @@ Learning goals: ${conceptLine || "core lesson ideas"}
 Return JSON: { title, durationSec, beats, questions }
 
 BEAT PLANNING:
-- 14–20 beats, one visual action each (compiler emits one self.play or self.wait)
+- ${beatMin}–${beatMax} beats, one visual action each (compiler emits one self.play or self.wait)
+- durationSec: ${durMin}–${durMax} seconds (target ~${Math.round((durMin + durMax) / 2)}s for full lessons)
 - title.text = lesson name (short)
-- text beats: 3–8 words max, complete phrase (e.g. "Rows become vectors", not "Apply linear algebra operations (matrix")
-- Never truncate mid-word or mid-parenthesis in on-screen text
-- Typical arc: title → shift_title_up → 2–4 text → fade_out → axes → plot_line → place_dot → move_dot → text → indicate → wait → circumscribe → wait
-- questions: 2 MCQs tied to THIS lesson, atSec spread across durationSec (90–150)
+- text beats: 3–8 words max, complete phrase
+- Build a full mini-lesson arc: title → captions → clear screen → graph/demo → highlight → recap
+- Include multiple text beats, waits, graph sequences (axes, plot_line, place_dot, move_dot), and emphasis (indicate, circumscribe, flash)
+- questions: 2–3 MCQs tied to THIS lesson, atSec spread across durationSec
 
 Beat types: title, shift_title_up, text, wait, fade_out, axes, plot_line, place_dot, move_dot, indicate, circumscribe, flash`,
-    mock: () => mockBeatPlan(args.lessonTitle, concepts),
+    mock: () => mockBeatPlan(args.lessonTitle, concepts, scale),
   });
 
-  const durationSec = Math.max(plan.durationSec, estimateDurationFromBeats(plan.beats));
+  const durationSec = Math.max(
+    plan.durationSec,
+    estimateDurationFromBeats(plan.beats),
+    args.isTaster ? 90 : durMin
+  );
   const beatOutline = plan.beats
     .map((b, i) => `${i + 1}. ${describeBeat(b)}`)
     .join("\n");
+
+  const wordTarget = Math.round(durationSec * 2.2);
 
   const narration = await llmText({
     task: "writeVideoNarration",
@@ -59,20 +75,18 @@ Beat types: title, shift_title_up, text, wait, fade_out, axes, plot_line, place_
     prompt: `Course: ${args.courseTitle}
 Lesson: ${args.lessonTitle}
 Key ideas: ${conceptLine || args.lessonTitle}
-Target length: ${durationSec} seconds (~${Math.round(durationSec * 2.2)} words)
+Target length: ${durationSec} seconds (~${wordTarget} words)
 
 Visual sequence (sync your narration to these moments):
 ${beatOutline}
 
-Write the full voiceover as one paragraph (8–12 sentences):
+Write the full voiceover (${args.isTaster ? "6–8" : "12–18"} sentences):
 - Teach "${args.lessonTitle}" specifically — use the key ideas above
-- Walk through what appears on screen in order (title, captions, graph, moving dot)
-- NO generic filler ("big picture", "let the idea land", "pieces fit together", "one step at a time")
-- NO incomplete phrases or cut-off words
-- NO meta talk about "beats" or "captions"
+- Walk through what appears on screen in order (title, captions, graph, moving dot, highlights)
+- NO generic filler or incomplete phrases
 - Define terms briefly when first mentioned
 - End with one concrete takeaway from this lesson`,
-    mock: () => mockNarration(args.lessonTitle, concepts),
+    mock: () => mockNarration(args.lessonTitle, concepts, args.isTaster),
   });
 
   const className = safeSceneClassName(args.lessonTitle);
@@ -112,41 +126,67 @@ function conceptHook(concepts: string[], lessonTitle: string): string {
   return (breakAt > 20 ? slice.slice(0, breakAt) : slice).replace(/\($/, "").trim();
 }
 
-function mockBeatPlan(lessonTitle: string, concepts: string[]) {
+function mockBeatPlan(
+  lessonTitle: string,
+  concepts: string[],
+  scale: ReturnType<typeof scaleForCourse>
+) {
   const label = safeCaption(lessonTitle, 44);
   const hook = conceptHook(concepts, lessonTitle);
+  const long = !scale.lessonsPerModule || scale.lessonsPerModule >= 5;
+  const beats: VideoBeat[] = long
+    ? [
+        { type: "title", text: label },
+        { type: "shift_title_up" },
+        { type: "text", text: safeCaption(hook, 40) },
+        { type: "wait", seconds: 2 },
+        { type: "text", text: "Start with the core idea" },
+        { type: "wait", seconds: 1.5 },
+        { type: "text", text: "Then see it visually" },
+        { type: "fade_out" },
+        { type: "axes" },
+        { type: "plot_line", slope: 0.35 },
+        { type: "place_dot" },
+        { type: "move_dot", runTime: 5 },
+        { type: "text", text: "Track the change" },
+        { type: "indicate" },
+        { type: "wait", seconds: 2 },
+        { type: "text", text: "Connect to real data" },
+        { type: "circumscribe" },
+        { type: "wait", seconds: 2 },
+        { type: "text", text: safeCaption(`Takeaway: ${hook}`, 44) },
+        { type: "flash" },
+        { type: "wait", seconds: 2 },
+      ]
+    : [
+        { type: "title", text: label },
+        { type: "shift_title_up" },
+        { type: "text", text: safeCaption(hook, 40) },
+        { type: "wait", seconds: 2 },
+        { type: "text", text: "Build the idea visually" },
+        { type: "fade_out" },
+        { type: "axes" },
+        { type: "plot_line", slope: 0.35 },
+        { type: "place_dot" },
+        { type: "move_dot", runTime: 4 },
+        { type: "indicate" },
+        { type: "wait", seconds: 2 },
+        { type: "flash" },
+      ];
+
   return {
     title: lessonTitle,
-    durationSec: 120,
-    beats: [
-      { type: "title" as const, text: label },
-      { type: "shift_title_up" as const },
-      { type: "text" as const, text: safeCaption(hook, 40) },
-      { type: "wait" as const, seconds: 2 },
-      { type: "text" as const, text: "Build the idea visually" },
-      { type: "wait" as const, seconds: 1.5 },
-      { type: "fade_out" as const },
-      { type: "axes" as const },
-      { type: "plot_line" as const, slope: 0.35 },
-      { type: "place_dot" as const },
-      { type: "move_dot" as const, runTime: 4 },
-      { type: "text" as const, text: "Change along the line" },
-      { type: "indicate" as const },
-      { type: "wait" as const, seconds: 2 },
-      { type: "text" as const, text: safeCaption(`Takeaway: ${hook}`, 44) },
-      { type: "circumscribe" as const },
-      { type: "wait" as const, seconds: 2 },
-      { type: "flash" as const },
-    ],
+    durationSec: long ? 240 : 120,
+    beats,
     questions: [
       {
-        atSec: 45,
+        atSec: long ? 80 : 45,
         question: `What topic does this lesson introduce?`,
         choices: [lessonTitle, "Unrelated history", "Memorization drills"],
         answerIndex: 0,
       },
       {
-        atSec: 105,
+        atSec: long ? 200 : 105,
         question: "What did the graph and moving dot show?",
         choices: [
           "How one quantity changes along the line",
@@ -159,15 +199,25 @@ function mockBeatPlan(lessonTitle: string, concepts: string[]) {
   };
 }
 
-function mockNarration(lessonTitle: string, concepts: string[]): string {
+function mockNarration(lessonTitle: string, concepts: string[], isTaster?: boolean): string {
   const hook = conceptHook(concepts, lessonTitle);
+  if (isTaster) {
+    return (
+      `This lesson is about ${lessonTitle}. ` +
+      `We'll focus on ${hook}. ` +
+      `Watch the title, captions, then the graph with a dot moving along the line. ` +
+      `By the end you should explain how ${hook} shows up in the animation.`
+    );
+  }
   return (
     `This lesson is about ${lessonTitle}. ` +
-    `We'll focus on ${hook}, and why it shows up in biological data analysis. ` +
-    `First you'll see the title, then a few captions that name the core idea. ` +
-    `Next we clear the screen and draw axes — a simple stand-in for how two quantities relate. ` +
-    `Watch the line appear, then a dot that travels along it: that motion is the relationship we care about. ` +
-    `When the dot reaches the highlight, think about what changed and what stayed fixed. ` +
-    `By the end, you should be able to explain in your own words how ${hook} connects to the graph you just saw.`
+    `We'll build from ${hook} to a visual model you can reuse on real problems. ` +
+    `First the title and key captions name what matters. ` +
+    `Then we clear the screen and draw axes — a stand-in for two related quantities. ` +
+    `Watch the line appear, then a dot traveling along it: that motion is the relationship we care about. ` +
+    `When we highlight the dot, think about what changed and what stayed fixed. ` +
+    `We pause on a second caption to connect the graph back to data you might see in practice. ` +
+    `The final recap states the takeaway in plain language. ` +
+    `By the end, you should explain in your own words how ${hook} connects to the graph you just saw.`
   );
 }

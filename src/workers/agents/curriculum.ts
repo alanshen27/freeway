@@ -1,5 +1,9 @@
 import { llmJSON, planCourseFallback } from "@/lib/llm";
 import {
+  scaleForCourse,
+  scaleSummary,
+} from "@/lib/course-scale";
+import {
   courseBlueprintSchema,
   tasterCourseBlueprintSchema,
   type CourseBlueprint,
@@ -11,6 +15,7 @@ type PlanInput = {
   level: string;
   interests: string[];
   responses: { prompt: string; answer: string }[];
+  durationWeeks?: number;
   isTaster?: boolean;
 };
 
@@ -42,42 +47,57 @@ Use exactly 1 subject with 2-3 concrete learning goals. Keep the scope small —
     });
   }
 
+  const scale = scaleForCourse({
+    durationWeeks: input.durationWeeks ?? 8,
+    isTaster: false,
+  });
+
   return llmJSON({
     task: "planCourse",
     fallback: planCourseFallback,
     schema: courseBlueprintSchema,
     system:
-      "You are a curriculum architect for professional engineering education. " +
-      "Design courses as clear subject areas (modules), each with learning goals. " +
-      "Respond with strict JSON only.",
-    prompt: `Design a course on "${input.topic}" (${input.category}, level ${input.level}).
+      "You are a curriculum architect for comprehensive professional engineering programs. " +
+      "Design courses as sequential modules (subjects) that build from foundations to advanced practice. " +
+      "Each module must be distinct — no duplicate titles. Respond with strict JSON only.",
+    prompt: `Design a comprehensive course on "${input.topic}" (${input.category}, level ${input.level}).
 Learner interests: ${input.interests.join(", ") || "general"}.
+Duration: ${input.durationWeeks ?? 8} weeks.
+Target size: ${scaleSummary(scale)}.
 Preliminary answers:\n${responseText || "(none)"}
 
 Return JSON: { title, summary, level, subjects: [{ title, summary, goals: string[] }] }.
-Use 2-4 subjects that build on each other. Each subject needs 2-4 concrete learning goals.`,
-    mock: () => mockCourseBlueprint(input),
+
+Use EXACTLY ${scale.moduleCount} modules (subjects), in learning order from foundations to advanced.
+Each module needs 3-5 concrete learning goals that fit its place in the sequence.
+Cover the full breadth of ${input.topic} — split topics across modules rather than repeating.`,
+    mock: () => mockCourseBlueprint(input, scale.moduleCount),
   });
 }
 
-function mockCourseBlueprint(input: PlanInput): CourseBlueprint {
+function mockCourseBlueprint(input: PlanInput, moduleCount: number): CourseBlueprint {
   const t = input.topic;
+  const subjects = Array.from({ length: moduleCount }, (_, i) => ({
+    title: i === 0 ? "Foundations" : i === moduleCount - 1 ? "Advanced practice" : `Module ${i + 1}`,
+    summary:
+      i === 0
+        ? `Core concepts behind ${t}.`
+        : i === moduleCount - 1
+          ? `Capstone-style practice with ${t}.`
+          : `Intermediate topics in ${t} (part ${i + 1}).`,
+    goals: [
+      "Define key terms for this stage",
+      "Apply methods to realistic problems",
+      "Connect theory to practice",
+      "Identify common pitfalls",
+    ],
+  }));
+
   return {
     title: t,
-    summary: `A structured introduction to ${t}.`,
+    summary: `A comprehensive program on ${t}.`,
     level: input.level,
-    subjects: [
-      {
-        title: `Core concepts`,
-        summary: `Foundational ideas behind ${t}.`,
-        goals: ["Define key terms", "Explain the main mental model", "Connect theory to practice"],
-      },
-      {
-        title: `Applied practice`,
-        summary: `Hands-on work with ${t}.`,
-        goals: ["Complete guided exercises", "Solve realistic problems", "Reflect on trade-offs"],
-      },
-    ],
+    subjects,
   };
 }
 

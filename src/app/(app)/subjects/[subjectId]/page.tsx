@@ -10,8 +10,9 @@ import {
 } from "@/lib/section-progress";
 import { sectionQuizMarks } from "@/lib/quiz-marks";
 import { PageHeader } from "@/components/PageHeader";
-import { Page, Breadcrumbs } from "@/components/layout/Page";
+import { Page, PageNavRow } from "@/components/layout/Page";
 import { SECTION_META, isSectionTypeKey } from "@/lib/section-types";
+import { SectionTypeIcon } from "@/components/lesson/SectionTypeIcons";
 import { CoverImage } from "@/components/lesson/CoverImage";
 import { RedoLessonButton, RedoSectionButton } from "@/components/lesson/RedoButtons";
 import {
@@ -58,9 +59,10 @@ export default async function SubjectPage({
 
   return (
     <div>
-      <PageHeader title={subject.title} eyebrow="Module" backHref={`/courses/${subject.courseId}`} wide={true} />
+      <PageHeader title={subject.title} eyebrow="Module" backHref={`/courses/${subject.courseId}`} wide backInNav />
       <Page wide>
-        <Breadcrumbs
+        <PageNavRow
+          backHref={`/courses/${subject.courseId}`}
           items={[
             { label: subject.course.title, href: `/courses/${subject.courseId}` },
             { label: subject.title },
@@ -71,15 +73,15 @@ export default async function SubjectPage({
           <CoverImage
             src={subject.imageUrl}
             alt={subject.title}
-            className="mt-4 aspect-[21/9] w-full max-w-3xl rounded-xl object-cover"
+            className="mt-4 aspect-[21/9] w-full rounded-xl object-cover"
           />
         )}
 
-        <p className="mt-4 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
           {subject.summary}
         </p>
         {subject.goals.length > 0 && (
-          <ul className="mt-4 max-w-3xl space-y-1.5 text-sm text-muted-foreground">
+          <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
             {subject.goals.map((g) => (
               <li key={g} className="flex gap-2">
                 <span className="text-primary">·</span>
@@ -189,7 +191,6 @@ export default async function SubjectPage({
                       ? SECTION_META[section.type]
                       : null;
                     const isDone = completed.has(section.id);
-                    const { Icon } = meta ?? { Icon: Circle };
                     const marks = sectionQuizMarks(
                       section.type,
                       section.data,
@@ -211,16 +212,7 @@ export default async function SubjectPage({
                             <span className="w-4 text-xs text-muted-foreground">
                               {sectionIndex + 1}
                             </span>
-                            {meta && (
-                              <span
-                                className={cn(
-                                  "flex size-7 shrink-0 items-center justify-center rounded-md",
-                                  meta.bg
-                                )}
-                              >
-                                <Icon className={cn("size-3.5", meta.color)} />
-                              </span>
-                            )}
+                            {meta && <SectionTypeIcon type={section.type} />}
                             <span
                               className={cn(
                                 "min-w-0 flex-1 text-sm",

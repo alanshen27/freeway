@@ -3,9 +3,9 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { ExerciseRunner } from "@/components/exercises/ExerciseRunner";
 import { QuestionsSection } from "@/components/lesson/QuestionsSection";
 import { SECTION_META, isSectionTypeKey } from "@/lib/section-types";
-import type { ReadingSectionData, QuestionsSectionData } from "@/lib/schemas";
+import type { ReadingSectionData, QuestionsSectionData, WorksheetSectionData } from "@/lib/schemas";
+import { WorksheetSection } from "@/components/lesson/WorksheetSection";
 import type { ExerciseType } from "@prisma/client";
-import { cn } from "@/lib/utils";
 
 type Section = {
   id: string;
@@ -39,6 +39,8 @@ export function SectionView({
   exercises,
   courseId,
   stepLabel,
+  onWorksheetReadyChange,
+  onQuestionsSubmittedChange,
 }: {
   section: Section;
   videos: VideoRec[];
@@ -46,6 +48,8 @@ export function SectionView({
   courseId: string;
   /** e.g. "Step 3 of 4" — rendered in the eyebrow next to the section type. */
   stepLabel?: string;
+  onWorksheetReadyChange?: (ready: boolean) => void;
+  onQuestionsSubmittedChange?: (submitted: boolean) => void;
 }) {
   const videoById = new Map(videos.map((v) => [v.id, v]));
   const exerciseById = new Map(exercises.map((e) => [e.id, e]));
@@ -64,11 +68,19 @@ export function SectionView({
         </p>
       </header>
 
-      <div className={cn(section.type === "VIDEO" ? "max-w-none" : "max-w-none lg:max-w-3xl")}>
-        {section.type === "READING" || section.type === "WORKSHEET" ? (
+      <div>
+        {section.type === "READING" ? (
           <Markdown
             source={(section.data as ReadingSectionData).markdown}
             parentheticalMath
+          />
+        ) : null}
+
+        {section.type === "WORKSHEET" ? (
+          <WorksheetSection
+            sectionId={section.id}
+            data={section.data as WorksheetSectionData}
+            onReadyChange={onWorksheetReadyChange}
           />
         ) : null}
 
@@ -92,8 +104,9 @@ export function SectionView({
 
         {section.type === "QUESTIONS" ? (
           <QuestionsSection
-            data={section.data as QuestionsSectionData}
             sectionId={section.id}
+            data={section.data as QuestionsSectionData}
+            onSubmittedChange={onQuestionsSubmittedChange}
           />
         ) : null}
 

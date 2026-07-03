@@ -9,23 +9,30 @@ export function SectionFooter({
   sectionId,
   lessonId,
   nextHref,
+  exitHref,
   completed,
+  canComplete = true,
+  pendingHint,
   label = "Mark complete & continue",
 }: {
   sectionId: string;
   lessonId: string;
   nextHref?: string;
+  /** Where to go when there is no next step (defaults to lesson hub redirect). */
+  exitHref?: string;
   completed: boolean;
+  canComplete?: boolean;
+  pendingHint?: string;
   label?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(completed);
+  const leaveHref = nextHref ?? exitHref ?? `/lessons/${lessonId}/continue`;
 
   async function complete() {
     if (done || busy) {
-      if (nextHref) router.push(nextHref);
-      else router.push(`/lessons/${lessonId}`);
+      router.push(leaveHref);
       return;
     }
     setBusy(true);
@@ -35,8 +42,7 @@ export function SectionFooter({
       });
       if (res.ok) {
         setDone(true);
-        if (nextHref) router.push(nextHref);
-        else router.push(`/lessons/${lessonId}`);
+        router.push(leaveHref);
       }
     } finally {
       setBusy(false);
@@ -62,7 +68,11 @@ export function SectionFooter({
           Completed
         </span>
       ) : (
-        <span className="text-sm text-muted-foreground">Finish this step to continue</span>
+        <span className="text-sm text-muted-foreground">
+          {canComplete
+            ? "Finish this step to continue"
+            : pendingHint ?? "Complete this step to continue"}
+        </span>
       )}
       <div className="flex flex-wrap items-center gap-2">
         {done && (
@@ -71,7 +81,7 @@ export function SectionFooter({
             Redo
           </Button>
         )}
-        <Button onClick={complete} disabled={busy}>
+        <Button onClick={complete} disabled={busy || (!done && !canComplete)}>
           {done ? "Continue" : label}
           <ArrowRight className="ml-1 size-4" />
         </Button>

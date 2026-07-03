@@ -1,5 +1,11 @@
 import { llmJSON } from "@/lib/llm";
 import {
+  ALL_EXERCISE_TYPES,
+  exerciseTypesForLesson,
+  scaleForCourse,
+  type CourseScale,
+} from "@/lib/course-scale";
+import {
   subjectBlueprintSchema,
   tasterSubjectBlueprintSchema,
   type SubjectBlueprint,
@@ -12,12 +18,32 @@ type PlanInput = {
   goals: string[];
   category: string;
   level: string;
+  durationWeeks?: number;
+  moduleIndex?: number;
+  moduleCount?: number;
   isTaster?: boolean;
 };
 
+const EXERCISE_LIST = ALL_EXERCISE_TYPES.join(", ");
+
+const SECTION_TEMPLATE = `
+Typical 12-step lesson arc (adapt titles to the topic):
+1. READING — concept introduction
+2. VIDEO — visual overview
+3. WORKSHEET — warm-up problems
+4. EXERCISE — hands-on (set exerciseType)
+5. READING — deeper theory or worked example
+6. WORKSHEET — guided practice
+7. QUESTIONS — review quiz (MCQ + open)
+8. VIDEO — technique or case study
+9. WORKSHEET — applied scenario
+10. EXERCISE — different exerciseType from step 4
+11. QUESTIONS — checkpoint assessment
+12. EXERCISE — consolidation challenge
+`.trim();
+
 /**
- * Subject sub-orchestrator. Plans a few rich lessons (4–5 sections each):
- * intro reading/video → worksheets → supplemental reading/video → more worksheets.
+ * Subject sub-orchestrator. Plans rich lessons (~12 sections, ~5 lessons per module).
  */
 export async function planSubjectLessons(input: PlanInput): Promise<SubjectBlueprint> {
   if (input.isTaster) {
@@ -44,74 +70,85 @@ Keep it lightweight — this is a taster, not a full module.`,
     });
   }
 
+  const scale = scaleForCourse({
+    durationWeeks: input.durationWeeks ?? 8,
+    isTaster: false,
+  });
+
+  const moduleHint =
+    input.moduleIndex !== undefined && input.moduleCount
+      ? `This is module ${input.moduleIndex + 1} of ${input.moduleCount} in the course. `
+      : "";
+
+  const lessonExerciseHints = Array.from({ length: scale.lessonsPerModule }, (_, li) => {
+    const types = exerciseTypesForLesson(li, 3);
+    return `Lesson ${li + 1} EXERCISE sections must use: ${types.join(", ")}`;
+  }).join("\n");
+
   return llmJSON({
     task: "planSubjectLessons",
     schema: subjectBlueprintSchema,
     system:
-      "You plan lessons for a professional LMS. Each lesson is a multi-step module with " +
-      "4–5 sections. Build depth through worksheets and short supplemental readings or videos. " +
+      "You plan comprehensive LMS modules. Each lesson has exactly 12 sections mixing readings, " +
+      "videos, worksheets, review questions, and varied interactive exercises. " +
       "Respond with strict JSON only.",
     prompt: `Course: ${input.courseTitle}
-Subject: ${input.subjectTitle} — ${input.subjectSummary}
+${moduleHint}Module: ${input.subjectTitle} — ${input.subjectSummary}
 Goals: ${input.goals.join("; ")}
 Category: ${input.category}, level: ${input.level}
 
 Return JSON: { lessons: [{ title, summary, sections: [{ type, title?, exerciseType? }] }] }.
 
-Use 2–4 lessons per subject. Each lesson has 4–5 sections (sections array length 4 or 5).
+Use EXACTLY ${scale.lessonsPerModule} lessons. Each lesson has EXACTLY ${scale.sectionsPerLesson} sections.
 
-Typical section flow inside a lesson:
-1. READING or VIDEO — introduce the topic for this lesson
-2. WORKSHEET — guided practice
-3. WORKSHEET — applied problems (different scenario)
-4. READING or VIDEO — supplemental explanation, edge cases, or worked example
-5. WORKSHEET, QUESTIONS, or EXERCISE — consolidation (pick one for the last step)
+${SECTION_TEMPLATE}
 
-Rules:
-- Include at least two WORKSHEET sections per lesson.
-- Alternate worksheets with short READING or VIDEO supplements — do not stack 4 worksheets with no media.
-- Use QUESTIONS for quick review; use EXERCISE (with exerciseType) for hands-on challenges.
-- Spread EXERCISE across lessons sparingly (not every lesson needs one).
-For EXERCISE sections set exerciseType from: CODING, CIRCUIT, VISUAL, MCQ, GRADED_TEXT, ORDERING, FILL_BLANK, MATCHING, NUMERIC, FLASHCARDS, CATEGORIZE, CODE_OUTPUT, LOGIC_CIRCUIT, GEOMETRY, FREE_BODY.
-Prefer variety: NUMERIC for calculation-heavy topics, CODE_OUTPUT for programming topics, FLASHCARDS for terminology, CATEGORIZE for classification/taxonomy topics.
-Prefer the builder types where the domain fits: LOGIC_CIRCUIT for digital logic / boolean algebra / CS fundamentals, GEOMETRY for geometry / trigonometry / vectors / spatial math, FREE_BODY for mechanics, statics and physics force problems.`,
-    mock: () => mockSubjectBlueprint(input),
+Exercise rules:
+- Include exactly 3 EXERCISE sections per lesson (steps 4, 10, 12 in the template).
+- For every EXERCISE section set exerciseType from: ${EXERCISE_LIST}
+- Across the whole module use many different exerciseType values — aim to cover all types in ${EXERCISE_LIST} at least once across the 5 lessons.
+${lessonExerciseHints}
+
+Content rules:
+- At least 2 WORKSHEET sections per lesson.
+- At least 2 QUESTIONS sections per lesson.
+- Alternate READING and VIDEO — do not stack 4 worksheets without media.
+- Lesson titles should progress: foundations → practice → application → synthesis → capstone.`,
+    mock: () => mockSubjectBlueprint(input, scale),
   });
 }
 
-function mockSubjectBlueprint(input: PlanInput): SubjectBlueprint {
-  const ex =
-    input.category === "SOFTWARE_ENGINEERING" || input.category === "AI_ENGINEERING"
-      ? "CODING"
-      : input.category === "MECHANICAL_ENGINEERING" || input.category === "PHYSICS"
-        ? "VISUAL"
-        : "MCQ";
+function mockSubjectBlueprint(input: PlanInput, scale: CourseScale): SubjectBlueprint {
+  const lessonTitles = [
+    `Foundations: ${input.subjectTitle}`,
+    `Core practice: ${input.subjectTitle}`,
+    `Applied scenarios`,
+    `Integration & review`,
+    `Capstone: ${input.subjectTitle}`,
+  ];
 
   return {
-    lessons: [
-      {
-        title: `Foundations: ${input.subjectTitle}`,
-        summary: `Core ideas and first practice for ${input.subjectTitle}.`,
+    lessons: lessonTitles.slice(0, scale.lessonsPerModule).map((title, li) => {
+      const exTypes = exerciseTypesForLesson(li, 3);
+      return {
+        title,
+        summary: `Lesson ${li + 1} for ${input.subjectTitle}.`,
         sections: [
-          { type: "READING", title: "Concept overview" },
-          { type: "WORKSHEET", title: "Warm-up problems" },
-          { type: "WORKSHEET", title: "Guided practice" },
-          { type: "VIDEO", title: "Worked examples" },
-          { type: "QUESTIONS", title: "Quick check" },
+          { type: "READING" as const, title: "Concept introduction" },
+          { type: "VIDEO" as const, title: "Visual overview" },
+          { type: "WORKSHEET" as const, title: "Warm-up" },
+          { type: "EXERCISE" as const, title: "Hands-on", exerciseType: exTypes[0] },
+          { type: "READING" as const, title: "Deep dive" },
+          { type: "WORKSHEET" as const, title: "Guided practice" },
+          { type: "QUESTIONS" as const, title: "Review quiz" },
+          { type: "VIDEO" as const, title: "Worked example" },
+          { type: "WORKSHEET" as const, title: "Applied problems" },
+          { type: "EXERCISE" as const, title: "Challenge A", exerciseType: exTypes[1] },
+          { type: "QUESTIONS" as const, title: "Checkpoint" },
+          { type: "EXERCISE" as const, title: "Challenge B", exerciseType: exTypes[2] },
         ],
-      },
-      {
-        title: `Applied: ${input.subjectTitle}`,
-        summary: "Deeper practice with supplemental explanation.",
-        sections: [
-          { type: "VIDEO", title: "Technique walkthrough" },
-          { type: "WORKSHEET", title: "Scenario A" },
-          { type: "READING", title: "Supplemental notes" },
-          { type: "WORKSHEET", title: "Scenario B" },
-          { type: "EXERCISE", title: "Challenge", exerciseType: ex as "CODING" },
-        ],
-      },
-    ],
+      };
+    }),
   };
 }
 

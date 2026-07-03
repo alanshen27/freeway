@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { ASSIGNMENT_META, dueInfo } from "@/lib/assignment-meta";
 import type { AssignmentQuizData, AssignmentChatMessage, AssignmentWorkData } from "@/lib/schemas";
 import { PageHeader } from "@/components/PageHeader";
-import { Page, Breadcrumbs } from "@/components/layout/Page";
+import { Page, PageNavRow } from "@/components/layout/Page";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/Markdown";
 import { MilestoneList } from "@/components/assignment/MilestoneList";
@@ -56,6 +56,8 @@ export default async function AssignmentPage({
         title={assignment.title}
         eyebrow={meta.label}
         backHref={`/courses/${assignment.courseId}`}
+        wide
+        backInNav
         action={
           assignment.status === "READY" ? (
             <CompleteButton assignmentId={assignment.id} completed={completed} />
@@ -63,8 +65,9 @@ export default async function AssignmentPage({
         }
       />
 
-      <Page>
-        <Breadcrumbs
+      <Page wide>
+        <PageNavRow
+          backHref={`/courses/${assignment.courseId}`}
           items={[
             { label: "Courses", href: "/courses" },
             { label: assignment.course.title, href: `/courses/${assignment.courseId}` },

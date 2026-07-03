@@ -16,7 +16,9 @@ export async function writeReadingSection(args: {
   subjectTitle: string;
   lessonTitle: string;
   goals: string[];
+  isTaster?: boolean;
 }): Promise<ReadingContent> {
+  const words = args.isTaster ? "300-450" : "700-1000";
   return llmJSON({
     task: "writeReadingSection",
     schema: readingSchema,
@@ -27,7 +29,7 @@ Lesson: ${args.lessonTitle}
 Goals: ${args.goals.join("; ")}
 
 Return JSON { markdown, images: [{ slot: "IMAGE_0", prompt, alt, caption? }, ...] }.
-Write 300-450 words. Include at least 2 images at meaningful points in the narrative.`,
+Write ${words} words. Include 3-5 images at meaningful points. Use headings, examples, and a summary.`,
     mock: () => mockReading(args),
   });
 }
@@ -42,23 +44,31 @@ export async function writeWorksheetSection(args: {
     task: "writeWorksheetSection",
     schema: worksheetSchema,
     system:
-      "You write practice worksheets in Markdown: numbered problems, short answer " +
-      "prompts, and reflection questions. Optional diagrams via IMAGE_0 placeholders. " +
-      "Use prompt for DALL·E image generation (instructional diagram, no text, centered, properly framed / scaled). JSON only.",
+      "You write practice worksheets as structured JSON: a short intro in Markdown " +
+      "(optional heading, no numbered problems in intro) plus 4-6 items with prompt " +
+      "and optional hint. Each item is one clear short-answer or show-your-work problem. " +
+      "Optional diagrams via IMAGE_0 in intro only. Use prompt for DALL·E (instructional " +
+      "diagram, no text, centered). JSON only.",
     prompt: `Course: ${args.courseTitle}
 Subject: ${args.subjectTitle}
 Lesson: ${args.lessonTitle}
+Goals: ${args.goals.join("; ")}
 
-Return JSON { markdown, images: [...] }. 4-6 practice items. Use IMAGE_0 only if a diagram helps.`,
+Return JSON { intro, items: [{ prompt, hint? }], images: [...] }. 6-8 practice items. Use IMAGE_0 only if a diagram helps.`,
     mock: () => ({
-      markdown: `## Worksheet: ${args.lessonTitle}\n\n1. Summarize the core idea in your own words.\n\n2. Apply the concept to a realistic scenario.\n\n3. What would you do differently on a second attempt?\n\n![Diagram](IMAGE_0)`,
-      images: [
+      intro: `## Worksheet: ${args.lessonTitle}\n\nWork through each problem below. Show reasoning where asked.`,
+      items: [
+        { prompt: "Summarize the core idea from this lesson in your own words." },
         {
-          slot: "IMAGE_0",
-          prompt: `Educational diagram explaining ${args.lessonTitle}, clean technical illustration, no text labels, centered, good framing, no cutoffs`,
-          alt: "Concept diagram",
+          prompt: "Apply the concept to a realistic scenario from your field.",
+          hint: "Name the scenario and walk through your reasoning step by step.",
         },
+        {
+          prompt: "What is one common mistake learners make here, and how would you avoid it?",
+        },
+        { prompt: "Create a mini example (with numbers or a sketch description) that demonstrates the method." },
       ],
+      images: [],
     }),
   });
 }

@@ -29,11 +29,11 @@ export const courseBlueprintSchema = z.object({
       z.object({
         title: z.string(),
         summary: z.string(),
-        goals: z.array(z.string()).min(1).max(6),
+        goals: z.array(z.string()).min(1).max(8),
       })
     )
-    .min(2)
-    .max(5),
+    .min(12)
+    .max(30),
 });
 export type CourseBlueprint = z.infer<typeof courseBlueprintSchema>;
 
@@ -67,11 +67,11 @@ export const subjectBlueprintSchema = z.object({
               exerciseType: exerciseTypeEnum.optional(),
             })
           )
-          .min(4)
-          .max(5),
+          .min(10)
+          .max(12),
       })
     )
-    .min(2)
+    .min(5)
     .max(5),
 });
 export type SubjectBlueprint = z.infer<typeof subjectBlueprintSchema>;
@@ -115,7 +115,16 @@ export const readingSchema = z.object({
 export type ReadingContent = z.infer<typeof readingSchema>;
 
 export const worksheetSchema = z.object({
-  markdown: z.string(),
+  intro: z.string().default(""),
+  items: z
+    .array(
+      z.object({
+        prompt: z.string().min(1),
+        hint: z.string().optional(),
+      })
+    )
+    .min(5)
+    .max(8),
   images: z.array(imageSpecSchema).max(3).default([]),
 });
 export type WorksheetContent = z.infer<typeof worksheetSchema>;
@@ -135,20 +144,33 @@ export const imageReviewSchema = z.object({
 });
 export type ImageReview = z.infer<typeof imageReviewSchema>;
 
+export const questionMcqSchema = z.object({
+  type: z.literal("mcq").optional(),
+  question: z.string(),
+  choices: z.array(z.string()).min(2),
+  answerIndex: z.number().int().min(0),
+  explanation: z.string(),
+  marks: z.number().int().min(1).max(10).default(1),
+});
+
+export const questionOpenSchema = z.object({
+  type: z.literal("open"),
+  question: z.string(),
+  marks: z.number().int().min(1).max(10),
+  markScheme: z.string().min(1),
+  modelAnswer: z.string().min(1),
+  explanation: z.string().optional(),
+});
+
+export const questionItemSchema = z.union([questionOpenSchema, questionMcqSchema]);
+
 export const questionsSectionSchema = z.object({
   title: z.string().default("Review questions"),
-  items: z
-    .array(
-      z.object({
-        question: z.string(),
-        choices: z.array(z.string()).min(2),
-        answerIndex: z.number().int().min(0),
-        explanation: z.string(),
-      })
-    )
-    .min(3)
-    .max(8),
+  items: z.array(questionItemSchema).min(5).max(8),
 });
+export type QuestionMcqItem = z.infer<typeof questionMcqSchema>;
+export type QuestionOpenItem = z.infer<typeof questionOpenSchema>;
+export type QuestionItem = z.infer<typeof questionItemSchema>;
 export type QuestionsSection = z.infer<typeof questionsSectionSchema>;
 
 /** One visual step — compiled to exactly one self.play or self.wait (no combo animations). */
@@ -209,8 +231,8 @@ export type VideoBeat = z.infer<typeof videoBeatSchema>;
 
 export const videoBeatPlanSchema = z.object({
   title: z.string(),
-  durationSec: z.number().int().min(90).max(180),
-  beats: z.array(videoBeatSchema).min(14).max(22),
+  durationSec: z.number().int().min(90).max(360),
+  beats: z.array(videoBeatSchema).min(14).max(42),
   questions: z
     .array(
       z.object({
@@ -220,8 +242,8 @@ export const videoBeatPlanSchema = z.object({
         answerIndex: z.number().int().min(0),
       })
     )
-    .min(1)
-    .max(3),
+    .min(2)
+    .max(4),
 });
 export type VideoBeatPlan = z.infer<typeof videoBeatPlanSchema>;
 
@@ -235,7 +257,7 @@ export const videoSchema = z.object({
   title: z.string(),
   narration: z.string(),
   manimScene: z.string(),
-  durationSec: z.number().int().min(75).max(240).default(120),
+  durationSec: z.number().int().min(75).max(360).default(180),
   questions: z
     .array(
       z.object({
@@ -337,6 +359,14 @@ export type AssignmentChatMessage = {
 export type ReadingSectionData = {
   markdown: string;
   images: { url: string; alt: string; caption?: string; prompt: string }[];
+};
+
+export type WorksheetSectionData = {
+  /** Legacy — full markdown with numbered problems. */
+  markdown?: string;
+  intro?: string;
+  items?: { prompt: string; hint?: string }[];
+  images?: ReadingSectionData["images"];
 };
 
 export type QuestionsSectionData = QuestionsSection;

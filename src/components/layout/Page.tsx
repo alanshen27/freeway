@@ -1,22 +1,44 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/** Shared horizontal bounds — keep PageHeader and Page left edges aligned. */
+export function pageShellClass(options?: {
+  wide?: boolean;
+  /** Comfortable line length for long-form reading (lesson sections). */
+  prose?: boolean;
+  className?: string;
+}) {
+  return cn(
+    "mx-auto w-full px-4 sm:px-6 lg:px-8",
+    options?.wide
+      ? "max-w-6xl"
+      : options?.prose
+        ? "max-w-2xl lg:max-w-3xl"
+        : "max-w-3xl lg:max-w-4xl",
+    options?.className
+  );
+}
 
 /** Standard page padding + max readable width. No card wrapper. */
 export function Page({
   children,
   className,
   wide,
+  prose,
 }: {
   children: React.ReactNode;
   className?: string;
   /** Use full main-column width on desktop (tables, course detail). */
   wide?: boolean;
+  /** Narrower column for long-form reading. */
+  prose?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "mx-auto w-full px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-8",
-        wide ? "max-w-6xl" : "max-w-3xl lg:max-w-4xl",
+        pageShellClass({ wide, prose }),
+        "pt-3 pb-28 lg:pb-8 lg:pt-4",
         className
       )}
     >
@@ -93,7 +115,7 @@ export function Breadcrumbs({
     <nav
       aria-label="Breadcrumb"
       className={cn(
-        "mb-4 flex max-w-md flex-nowrap items-center gap-1 overflow-hidden text-xs text-muted-foreground sm:max-w-xl lg:max-w-2xl",
+        "mb-3 flex min-w-0 w-full flex-nowrap items-center gap-1 overflow-hidden text-xs text-muted-foreground",
         className
       )}
     >
@@ -116,6 +138,42 @@ export function Breadcrumbs({
         </span>
       ))}
     </nav>
+  );
+}
+
+/** Back link + breadcrumbs on one row (below page title). */
+export function PageNavRow({
+  backHref,
+  items,
+  className,
+}: {
+  backHref?: string;
+  items: { label: string; href?: string }[];
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "mb-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1",
+        className
+      )}
+    >
+      {backHref ? (
+        <Link
+          href={backHref}
+          className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" />
+          Back
+        </Link>
+      ) : null}
+      {backHref && items.length > 0 ? (
+        <span className="hidden shrink-0 text-border sm:inline" aria-hidden>
+          /
+        </span>
+      ) : null}
+      <Breadcrumbs items={items} className="mb-0 w-auto min-w-0 flex-1" />
+    </div>
   );
 }
 
