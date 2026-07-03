@@ -7,7 +7,9 @@ const READING_SYSTEM =
   "IMAGE_0, IMAGE_1, etc. on their own lines like: ![alt text](IMAGE_0). " +
   "Each image needs a matching entry in the images array with the same slot. " +
   "For each image, write a detailed DALL·E prompt in the prompt field (educational " +
-  "illustration, diagram, or photo-style — no text in the image). Respond with strict JSON.";
+  "illustration, diagram, or photo-style — no text in the image). Make sure that each " +
+  "image is centered, clear, properly framed / scaled, and not cut off by adding " +
+  "parameters to the prompt. Respond with strict JSON.";
 
 export async function writeReadingSection(args: {
   courseTitle: string;
@@ -42,7 +44,7 @@ export async function writeWorksheetSection(args: {
     system:
       "You write practice worksheets in Markdown: numbered problems, short answer " +
       "prompts, and reflection questions. Optional diagrams via IMAGE_0 placeholders. " +
-      "Use prompt for DALL·E image generation (instructional diagram, no text). JSON only.",
+      "Use prompt for DALL·E image generation (instructional diagram, no text, centered, properly framed / scaled). JSON only.",
     prompt: `Course: ${args.courseTitle}
 Subject: ${args.subjectTitle}
 Lesson: ${args.lessonTitle}
@@ -53,7 +55,7 @@ Return JSON { markdown, images: [...] }. 4-6 practice items. Use IMAGE_0 only if
       images: [
         {
           slot: "IMAGE_0",
-          prompt: `Educational diagram explaining ${args.lessonTitle}, clean technical illustration, no text labels`,
+          prompt: `Educational diagram explaining ${args.lessonTitle}, clean technical illustration, no text labels, centered, good framing, no cutoffs`,
           alt: "Concept diagram",
         },
       ],
@@ -71,13 +73,13 @@ function mockReading(args: {
     images: [
       {
         slot: "IMAGE_0",
-        prompt: `Overview illustration for ${args.lessonTitle}, modern educational style, indigo palette`,
+        prompt: `Overview illustration for ${args.lessonTitle}, modern educational style, indigo palette, centered, good framing, no cutoffs`,
         alt: "Topic overview",
         caption: "High-level view",
       },
       {
         slot: "IMAGE_1",
-        prompt: `Worked example diagram for ${args.lessonTitle}, technical schematic, no text`,
+        prompt: `Worked example diagram for ${args.lessonTitle}, technical schematic, no text, centered, good framing, no cutoffs`,
         alt: "Worked example",
       },
     ],

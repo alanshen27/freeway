@@ -1,7 +1,10 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
 import type { Components } from "react-markdown";
+import { convertParentheticalMath } from "@/lib/markdown-math";
 
 const components: Components = {
   h1: ({ children }) => (
@@ -13,9 +16,18 @@ const components: Components = {
   h3: ({ children }) => (
     <h3 className="mt-4 text-sm font-semibold first:mt-0">{children}</h3>
   ),
-  p: ({ children }) => (
-    <p className="my-2 text-sm leading-relaxed text-foreground">{children}</p>
-  ),
+  p: ({ node, children }) => {
+    // Markdown images are inline, so `![alt](url)` on its own line still
+    // parses as a <p> wrapping an <img>. Our img renderer below outputs a
+    // block-level <figure>, and <figure> can't legally sit inside <p> — that
+    // mismatch between server/client-parsed HTML is what triggers hydration
+    // errors. Skip the <p> wrapper whenever the paragraph contains an image.
+    const hasImage = node?.children?.some(
+      (child) => child.type === "element" && child.tagName === "img"
+    );
+    if (hasImage) return <>{children}</>;
+    return <p className="my-2 text-sm leading-relaxed text-foreground">{children}</p>;
+  },
   ul: ({ children }) => (
     <ul className="my-3 list-disc space-y-1 pl-5 text-sm leading-relaxed">{children}</ul>
   ),
@@ -92,15 +104,26 @@ const components: Components = {
   ),
 };
 
-export function Markdown({ source }: { source: string }) {
+export function Markdown({
+  source,
+  parentheticalMath = false,
+}: {
+  source: string;
+  /** Also convert bare (F = ma) style parens to inline LaTeX — for lesson sections. */
+  parentheticalMath?: boolean;
+}) {
+  // LaTeX ($...$ / $$...$$) is always parsed via remark-math + rehype-katex,
+  // regardless of where Markdown is used (lessons, forum, assignments, chat).
+  const prepared = parentheticalMath ? convertParentheticalMath(source) : source;
+
   return (
     <div className="prose-lms max-w-none text-foreground">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeHighlight, rehypeKatex]}
         components={components}
       >
-        {source}
+        {prepared}
       </ReactMarkdown>
     </div>
   );

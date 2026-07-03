@@ -66,7 +66,10 @@ export function SectionView({
 
       <div className={cn(section.type === "VIDEO" ? "max-w-none" : "max-w-none lg:max-w-3xl")}>
         {section.type === "READING" || section.type === "WORKSHEET" ? (
-          <Markdown source={(section.data as ReadingSectionData).markdown} />
+          <Markdown
+            source={(section.data as ReadingSectionData).markdown}
+            parentheticalMath
+          />
         ) : null}
 
         {section.type === "VIDEO" ? (

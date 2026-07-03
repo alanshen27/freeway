@@ -1,4 +1,5 @@
 @import "highlight.js/styles/github-dark.min.css";
+@import "katex/dist/katex.min.css";
 
 @tailwind base;
 @tailwind components;
@@ -60,6 +61,14 @@
   }
   .hljs-code code.hljs {
     @apply block bg-[#1e293b] p-4 font-mono text-[0.8125rem] leading-relaxed;
+  }
+
+  /* KaTeX inline math in lesson content */
+  .prose-lms .katex {
+    @apply text-[1em] text-foreground;
+  }
+  .prose-lms .katex-display {
+    @apply my-3 overflow-x-auto;
   }
 }
 
