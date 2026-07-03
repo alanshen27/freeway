@@ -161,6 +161,8 @@ model Course {
   durationWeeks  Int            @default(8)
   /** Short sample course: one subject, one lesson, lighter assignments. */
   isTaster       Boolean        @default(false)
+  /** Career track slug — shared forum key (e.g. introduction-to-physics). */
+  trackSlug      String
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -274,6 +276,7 @@ model ExerciseAttempt {
 
 model ForumThread {
   id         String    @id @default(cuid())
+  trackSlug  String
   courseId   String
   course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   authorId   String
@@ -285,6 +288,8 @@ model ForumThread {
   createdAt  DateTime  @default(now())
 
   posts ForumPost[]
+
+  @@index([trackSlug])
 }
 
 model ForumPost {

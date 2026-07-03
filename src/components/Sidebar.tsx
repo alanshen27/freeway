@@ -68,7 +68,9 @@ function NavGroup({
 }
 
 function SidebarUserFooter({ user }: { user: UserInfo }) {
+  const pathname = usePathname();
   const router = useRouter();
+  const onProfile = pathname === "/settings" || pathname.startsWith("/settings/");
 
   async function logout() {
     await fetch("/api/logout", { method: "POST" });
@@ -78,22 +80,32 @@ function SidebarUserFooter({ user }: { user: UserInfo }) {
 
   return (
     <div className="border-t border-slate-100 px-3 py-3">
-      <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-course-gradient text-[11px] font-semibold text-white">
-          {initials(user.name)}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium text-slate-800">
-            {user.name}
-          </p>
-          {user.email && (
-            <p className="truncate text-[11px] text-slate-400">{user.email}</p>
+      <div className="flex items-center gap-2.5 rounded-lg">
+        <Link
+          href="/settings"
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-2.5 rounded-lg transition-colors px-2 py-1.5",
+            onProfile
+              ? "bg-primary/10"
+              : "hover:bg-slate-100"
           )}
-        </div>
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-course-gradient text-[11px] font-semibold text-white">
+            {initials(user.name)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-medium text-slate-800">
+              {user.name}
+            </p>
+            {user.email && (
+              <p className="truncate text-[11px] text-slate-400">{user.email}</p>
+            )}
+          </div>
+        </Link>
         <button
           onClick={logout}
           aria-label="Log out"
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-red-500 transition-colors hover:bg-red-200"
         >
           <LogOut className="size-4" />
         </button>

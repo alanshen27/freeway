@@ -72,6 +72,7 @@ export async function POST(req: Request) {
       coverColorTo: career.to,
       durationWeeks: parsed.data.isTaster ? 1 : parsed.data.durationWeeks,
       isTaster: parsed.data.isTaster,
+      trackSlug: career.slug,
     },
   });
 

@@ -18,9 +18,26 @@ export async function POST(req: Request) {
   if (!parsed.success)
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
 
+  const course = await prisma.course.findUnique({
+    where: { id: parsed.data.courseId },
+    select: { id: true, ownerId: true, trackSlug: true },
+  });
+  if (!course || course.ownerId !== user.id)
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  if (parsed.data.exerciseId) {
+    const exercise = await prisma.exercise.findFirst({
+      where: { id: parsed.data.exerciseId, courseId: course.id },
+      select: { id: true },
+    });
+    if (!exercise)
+      return NextResponse.json({ error: "Invalid exercise" }, { status: 400 });
+  }
+
   const thread = await prisma.forumThread.create({
     data: {
-      courseId: parsed.data.courseId,
+      trackSlug: course.trackSlug,
+      courseId: course.id,
       authorId: user.id,
       title: parsed.data.title,
       body: parsed.data.body,

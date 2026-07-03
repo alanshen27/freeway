@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ContentBlock } from "@/components/layout/Page";
 import { cn } from "@/lib/utils";
 
@@ -37,18 +38,22 @@ export function ReplyBox({ threadId }: { threadId: string }) {
         className="mt-1.5 min-h-20"
       />
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => setAskAI((v) => !v)}
+        <label
+          htmlFor="ask-ai-tutor"
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+            "inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
             askAI
               ? "border-primary/30 bg-brand-50 text-brand-700"
               : "border-border text-muted-foreground hover:bg-secondary"
           )}
         >
-          <Sparkles className="size-4" /> Ask AI tutor
-        </button>
+          <Checkbox
+            id="ask-ai-tutor"
+            checked={askAI}
+            onCheckedChange={(checked) => setAskAI(checked === true)}
+          />
+          Ask AI tutor
+        </label>
         <Button size="sm" disabled={loading || !body.trim()} onClick={send}>
           <Send className="size-4" />
           {loading ? "Sending…" : "Reply"}

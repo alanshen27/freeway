@@ -61,6 +61,7 @@ async function main() {
       status: "GENERATING",
       coverColorFrom: career.from,
       coverColorTo: career.to,
+      trackSlug: career.slug,
     },
   });
   const job = await prisma.generationJob.create({
@@ -76,6 +77,7 @@ async function main() {
   });
   const thread = await prisma.forumThread.create({
     data: {
+      trackSlug: career.slug,
       courseId: course.id,
       authorId: user.id,
       title: "Stuck on the first exercise — any hints?",

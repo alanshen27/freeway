@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { llmText } from "@/lib/llm";
+import { userHasForumAccess } from "@/lib/forum";
 
 const schema = z.object({
   body: z.string().min(1),
@@ -26,6 +27,9 @@ export async function POST(
     include: { exercise: true },
   });
   if (!thread) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  if (!(await userHasForumAccess(user.id, thread.trackSlug)))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const post = await prisma.forumPost.create({
     data: { threadId, authorId: user.id, body: parsed.data.body },

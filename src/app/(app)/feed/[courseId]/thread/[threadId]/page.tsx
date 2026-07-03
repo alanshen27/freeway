@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Sparkles, Paperclip } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
+import { userHasForumAccess } from "@/lib/forum";
 import { Markdown } from "@/components/Markdown";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +18,16 @@ export default async function ThreadPage({
 }: {
   params: Promise<{ courseId: string; threadId: string }>;
 }) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/onboarding/name");
+
   const { courseId, threadId } = await params;
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { id: true, ownerId: true, trackSlug: true },
+  });
+  if (!course || course.ownerId !== user.id) notFound();
+
   const thread = await prisma.forumThread.findUnique({
     where: { id: threadId },
     include: {
@@ -25,7 +36,12 @@ export default async function ThreadPage({
       posts: { include: { author: true }, orderBy: { createdAt: "asc" } },
     },
   });
-  if (!thread) notFound();
+  if (!thread || thread.trackSlug !== course.trackSlug) notFound();
+  if (!(await userHasForumAccess(user.id, thread.trackSlug))) notFound();
+
+  const canLinkExercise =
+    thread.exercise &&
+    (thread.authorId === user.id || thread.exercise.courseId === courseId);
 
   return (
     <div>
@@ -48,19 +64,25 @@ export default async function ThreadPage({
           <div className="mt-3">
             <Markdown source={thread.body} />
           </div>
-          {thread.exercise && (
-            <Link
-              href={
-                thread.exercise.lessonId
-                  ? `/lessons/${thread.exercise.lessonId}`
-                  : `/courses/${courseId}`
-              }
-              className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-primary hover:bg-secondary"
-            >
-              <Paperclip className="size-4" />
-              {thread.exercise.title}
-            </Link>
-          )}
+          {thread.exercise &&
+            (canLinkExercise ? (
+              <Link
+                href={
+                  thread.exercise.lessonId
+                    ? `/lessons/${thread.exercise.lessonId}`
+                    : `/courses/${courseId}`
+                }
+                className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-primary hover:bg-secondary"
+              >
+                <Paperclip className="size-4" />
+                {thread.exercise.title}
+              </Link>
+            ) : (
+              <span className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm text-muted-foreground">
+                <Paperclip className="size-4" />
+                {thread.exercise.title}
+              </span>
+            ))}
         </ContentBlock>
 
         {thread.posts.length > 0 && (

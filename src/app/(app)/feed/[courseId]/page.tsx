@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Plus, ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
+import { trackTitle } from "@/lib/forum";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,22 +17,26 @@ export default async function CourseForumPage({
 }: {
   params: Promise<{ courseId: string }>;
 }) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/onboarding/name");
+
   const { courseId } = await params;
   const course = await prisma.course.findUnique({
     where: { id: courseId },
-    include: {
-      threads: {
-        include: { author: true, exercise: true, _count: { select: { posts: true } } },
-        orderBy: { createdAt: "desc" },
-      },
-    },
+    select: { id: true, title: true, trackSlug: true, ownerId: true },
   });
-  if (!course) notFound();
+  if (!course || course.ownerId !== user.id) notFound();
+
+  const threads = await prisma.forumThread.findMany({
+    where: { trackSlug: course.trackSlug },
+    include: { author: true, exercise: true, _count: { select: { posts: true } } },
+    orderBy: { createdAt: "desc" },
+  });
 
   return (
     <div>
       <PageHeader
-        title={course.title}
+        title={trackTitle(course.trackSlug)}
         eyebrow="Forum"
         backHref="/feed"
         action={
@@ -43,7 +49,10 @@ export default async function CourseForumPage({
         }
       />
       <Page>
-        <Button asChild size="sm" className="mb-4 sm:hidden">
+        <p className="text-sm text-muted-foreground text-center">
+          Shared with everyone taking {trackTitle(course.trackSlug)}.
+        </p>
+        <Button asChild size="sm" className="mb-4 mt-4 sm:hidden">
           <Link href={`/feed/${courseId}/new`}>
             <Plus className="size-4" />
             New discussion
@@ -51,13 +60,13 @@ export default async function CourseForumPage({
         </Button>
 
         <div className="mt-6">
-          {course.threads.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No discussions yet. Start the first thread for this course.
+          {threads.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center">
+              No discussions yet. Start the first thread for this track.
             </p>
           ) : (
             <ListPanel>
-              {course.threads.map((t) => (
+              {threads.map((t) => (
                 <ListRow key={t.id} href={`/feed/${courseId}/thread/${t.id}`}>
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand-50 text-xs font-medium text-brand-700">
                     {initials(t.author.name)}
