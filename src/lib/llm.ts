@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { z } from "zod";
-import { env, features, isProd } from "@/lib/env";
+import { features } from "@/lib/env";
 import { createLogger } from "@/lib/logger";
 import { recordLlmUsage } from "./llm/cost";
 import {
@@ -26,7 +26,7 @@ export {
   type LlmUsageRecord,
 } from "./llm/cost";
 
-/** Thrown when generation is attempted in production without an LLM configured. */
+/** Thrown when generation is attempted without an LLM configured. */
 export class LLMNotConfiguredError extends Error {
   constructor() {
     super(
@@ -36,20 +36,40 @@ export class LLMNotConfiguredError extends Error {
   }
 }
 
+/** Thrown when the model returns unusable output and mock fallback is disabled. */
+export class LLMGenerationError extends Error {
+  constructor(task: string, detail: string) {
+    super(`${task} failed: ${detail}`);
+    this.name = "LLMGenerationError";
+  }
+}
+
 type LLMArgs<T> = {
   system: string;
   prompt: string;
   schema: z.ZodTypeAny;
+  /** Only used when LLM_ALLOW_MOCK=1 (seed/offline). Never for production generation. */
   mock: () => T;
-  /** Cost attribution label, e.g. planCourse, writeReadingSection. */
   task?: string;
-  /** Override default llmJSON routing for this call. */
   model?: ChatModelConfig;
-  /** Retry with this model after primary exhausts schema retries. */
   fallback?: ChatModelConfig;
 };
 
 type VisionContent = OpenAI.Chat.Completions.ChatCompletionContentPart[];
+
+function useMock(task: string, reason: string): boolean {
+  if (features.llmMock) {
+    log.warn("mock fallback (LLM_ALLOW_MOCK=1)", { task, reason });
+    return true;
+  }
+  return false;
+}
+
+function failOrMock<T>(task: string, reason: string, mock: () => T): T {
+  if (useMock(task, reason)) return mock();
+  if (reason.includes("not configured")) throw new LLMNotConfiguredError();
+  throw new LLMGenerationError(task, reason);
+}
 
 function isRetryableLlmError(err: unknown) {
   const msg = (err as Error).message ?? String(err);
@@ -167,6 +187,7 @@ function hasJsonLlm(): boolean {
 
 /**
  * Structured JSON generation — DeepSeek V4 Flash by default.
+ * Never silently mocks unless LLM_ALLOW_MOCK=1.
  */
 export async function llmJSON<T>({
   system,
@@ -178,8 +199,7 @@ export async function llmJSON<T>({
   fallback,
 }: LLMArgs<T>): Promise<T> {
   if (!hasJsonLlm()) {
-    if (isProd) throw new LLMNotConfiguredError();
-    return mock();
+    return failOrMock(task, "LLM not configured — set DEEPSEEK_API_KEY", mock);
   }
 
   const primary = resolveChatConfig(modelMapping.llmJSON, model);
@@ -205,11 +225,7 @@ export async function llmJSON<T>({
 
   if ("data" in result) return result.data;
 
-  if (isProd) {
-    throw new Error(`LLM produced invalid output: ${result.error}`);
-  }
-  log.warn("schema mismatch after retries, using mock", { lastError: result.error });
-  return mock();
+  return failOrMock(task, `invalid JSON after retries — ${result.error}`, mock);
 }
 
 /**
@@ -230,8 +246,11 @@ export async function llmVisionJSON<T>({
 }): Promise<T> {
   const config = resolveVisionConfig();
   if (!isChatProviderConfigured(config)) {
-    if (isProd) throw new LLMNotConfiguredError();
-    return mock();
+    return failOrMock(
+      task,
+      "Vision LLM not configured — set ZAI_API_KEY or OPENAI_API_KEY",
+      mock
+    );
   }
 
   let lastError = "";
@@ -270,13 +289,12 @@ export async function llmVisionJSON<T>({
         .map((i) => `${i.path.join(".")}: ${i.message}`)
         .join("; ");
     } catch (err) {
-      log.warn("vision request failed", {}, err);
-      return mock();
+      if (useMock(task, (err as Error).message)) return mock();
+      throw err;
     }
   }
 
-  log.warn("vision schema mismatch after retries, using mock", { lastError });
-  return mock();
+  return failOrMock(task, `invalid JSON after retries — ${lastError}`, mock);
 }
 
 /**
@@ -297,8 +315,7 @@ export async function llmText({
 }): Promise<string> {
   const config = resolveChatConfig(modelMapping.llmText, model);
   if (!isChatProviderConfigured(config)) {
-    if (isProd) throw new LLMNotConfiguredError();
-    return mock();
+    return failOrMock(task, "LLM not configured — set DEEPSEEK_API_KEY", mock);
   }
 
   try {
@@ -310,10 +327,14 @@ export async function llmText({
         { role: "user", content: prompt },
       ],
     });
-    return content.trim() || mock();
+    const text = content.trim();
+    if (!text) {
+      return failOrMock(task, "empty response from model", mock);
+    }
+    return text;
   } catch (err) {
-    log.warn("text request failed", {}, err);
-    return mock();
+    if (useMock(task, (err as Error).message)) return mock();
+    throw err;
   }
 }
 

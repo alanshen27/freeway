@@ -1,4 +1,10 @@
 import "dotenv/config";
+
+// Seed-only: allow mock pipeline when no API keys (never in app/worker by default).
+if (!process.env.DEEPSEEK_API_KEY && process.env.LLM_ALLOW_MOCK !== "0") {
+  process.env.LLM_ALLOW_MOCK = "1";
+}
+
 import { PrismaClient } from "@prisma/client";
 import { INTERESTS, careerBySlug, prelimFor } from "../src/lib/catalog";
 import { runCourseGeneration } from "../src/workers/pipeline";
@@ -68,7 +74,11 @@ async function main() {
     data: { courseId: course.id, userId: user.id, type: "course" },
   });
 
-  console.log("Generating demo course (mock pipeline)…");
+  console.log(
+    process.env.DEEPSEEK_API_KEY
+      ? "Generating demo course (live LLM)…"
+      : "Generating demo course (LLM_ALLOW_MOCK=1 — no DEEPSEEK_API_KEY)…"
+  );
   await runCourseGeneration({ jobId: job.id, courseId: course.id, userId: user.id });
 
   // Seed a forum thread referencing the first exercise.

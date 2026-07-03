@@ -63,4 +63,9 @@ export const features = {
   supabaseStorage: Boolean(env.supabaseUrl && env.supabaseServiceRole),
   /** ElevenLabs text-to-speech for video voiceovers. */
   elevenlabs: Boolean(env.elevenlabsKey),
+  /**
+   * Allow mock LLM when keys missing or calls fail. OFF by default.
+   * Set LLM_ALLOW_MOCK=1 only for prisma seed / offline demos — never in worker/prod.
+   */
+  llmMock: process.env.LLM_ALLOW_MOCK === "1",
 };

@@ -8,6 +8,36 @@ function runTime(beat: { runTime?: number }, fallback: number): number {
   return beat.runTime ?? fallback;
 }
 
+/** Human-readable beat label for narration sync prompts. */
+export function describeBeat(beat: VideoBeat): string {
+  switch (beat.type) {
+    case "title":
+      return `Title card: "${beat.text}"`;
+    case "shift_title_up":
+      return "Title moves to top";
+    case "text":
+      return `Caption: "${beat.text}"`;
+    case "wait":
+      return `Pause (${beat.seconds}s)`;
+    case "fade_out":
+      return "Screen clears";
+    case "axes":
+      return "Coordinate axes appear";
+    case "plot_line":
+      return `Line drawn on axes (slope ${beat.slope ?? 0.35})`;
+    case "place_dot":
+      return "Dot appears on the line";
+    case "move_dot":
+      return "Dot travels along the line";
+    case "indicate":
+      return "Highlight the last object";
+    case "circumscribe":
+      return "Box around the last object";
+    case "flash":
+      return "Flash emphasis";
+  }
+}
+
 /** Insert missing axes/graph beats so the compiler never emits broken references. */
 export function normalizeVideoBeats(beats: VideoBeat[]): VideoBeat[] {
   const out: VideoBeat[] = [];

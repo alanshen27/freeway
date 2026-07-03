@@ -164,7 +164,7 @@ export const videoBeatSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("text"),
-    text: z.string().min(1).max(75),
+    text: z.string().min(1).max(55),
     runTime: z.number().min(1).max(5).optional(),
   }),
   z.object({
@@ -207,10 +207,8 @@ export const videoBeatSchema = z.discriminatedUnion("type", [
 ]);
 export type VideoBeat = z.infer<typeof videoBeatSchema>;
 
-export const videoPlanSchema = z.object({
+export const videoBeatPlanSchema = z.object({
   title: z.string(),
-  /** Long enough to cover the full beat sequence (~90–150s). */
-  narration: z.string().min(120),
   durationSec: z.number().int().min(90).max(180),
   beats: z.array(videoBeatSchema).min(14).max(22),
   questions: z
@@ -224,6 +222,12 @@ export const videoPlanSchema = z.object({
     )
     .min(1)
     .max(3),
+});
+export type VideoBeatPlan = z.infer<typeof videoBeatPlanSchema>;
+
+/** @deprecated use videoBeatPlanSchema + separate narration pass */
+export const videoPlanSchema = videoBeatPlanSchema.extend({
+  narration: z.string().min(120),
 });
 export type VideoPlan = z.infer<typeof videoPlanSchema>;
 
