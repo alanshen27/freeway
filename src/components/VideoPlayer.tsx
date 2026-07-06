@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play, Pause, CheckCircle2 } from "lucide-react";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Question = {
   atSec: number;
@@ -198,7 +199,9 @@ export function VideoPlayer({
         {active && (
           <div className="absolute inset-0 z-10 flex flex-col justify-center gap-3 bg-black/70 p-5 backdrop-blur-sm">
             <p className="text-sm font-medium text-white/90">Quick check</p>
-            <p className="text-base font-semibold text-white">{active.question}</p>
+            <div className="text-base font-semibold text-white">
+              <InlineMarkdown source={active.question} parentheticalMath />
+            </div>
             <div className="space-y-2">
               {active.choices.map((c, i) => (
                 <button
@@ -206,7 +209,7 @@ export function VideoPlayer({
                   onClick={() => answer()}
                   className="w-full rounded-md border border-white/30 bg-white/10 px-3 py-2 text-left text-sm text-white hover:bg-white/20"
                 >
-                  {c}
+                  <InlineMarkdown source={c} parentheticalMath />
                 </button>
               ))}
             </div>
@@ -241,9 +244,9 @@ export function VideoPlayer({
         )}
       </div>
       {narration && (
-        <p className="bg-ink-soft px-3 py-2 text-xs leading-relaxed text-white/70">
-          {narration}
-        </p>
+        <div className="bg-ink-soft px-3 py-2 text-xs leading-relaxed text-white/70">
+          <InlineMarkdown source={narration} />
+        </div>
       )}
     </div>
   );

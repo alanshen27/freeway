@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dueInfo } from "@/lib/assignment-meta";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Milestone = {
   id: string;
@@ -97,7 +98,7 @@ export function MilestoneList({
                   </span>
                   {m.description && (
                     <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {m.description}
+                      <InlineMarkdown source={m.description} />
                     </span>
                   )}
                 </span>

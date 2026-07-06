@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Config = { template: string; answers: string[] };
 
@@ -23,7 +24,7 @@ export function FillBlankExercise({
     <div className="rounded-lg border border-border bg-secondary/30 p-4 text-sm leading-loose">
       {parts.map((part, i) => (
         <span key={i}>
-          {part}
+          <InlineMarkdown source={part} parentheticalMath />
           {i < blanks && (
             <input
               value={values[i] ?? ""}

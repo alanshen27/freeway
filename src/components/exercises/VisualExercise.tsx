@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Config = {
   kind: "lever" | "vector-sum" | "projectile" | "gear-ratio";
@@ -15,10 +16,27 @@ export function VisualExercise({
   onChange: (a: unknown) => void;
 }) {
   const cfg = config as unknown as Config;
-  if (cfg.kind === "vector-sum") return <VectorSum cfg={cfg} onChange={onChange} />;
-  if (cfg.kind === "projectile") return <Projectile cfg={cfg} onChange={onChange} />;
-  if (cfg.kind === "gear-ratio") return <GearRatio cfg={cfg} onChange={onChange} />;
-  return <Lever cfg={cfg} onChange={onChange} />;
+  const body =
+    cfg.kind === "vector-sum" ? (
+      <VectorSum cfg={cfg} onChange={onChange} />
+    ) : cfg.kind === "projectile" ? (
+      <Projectile cfg={cfg} onChange={onChange} />
+    ) : cfg.kind === "gear-ratio" ? (
+      <GearRatio cfg={cfg} onChange={onChange} />
+    ) : (
+      <Lever cfg={cfg} onChange={onChange} />
+    );
+
+  return (
+    <div>
+      {cfg.prompt && (
+        <div className="mb-3 text-sm text-muted-foreground">
+          <InlineMarkdown source={cfg.prompt} parentheticalMath />
+        </div>
+      )}
+      {body}
+    </div>
+  );
 }
 
 /** Projectile: tune launch angle + speed to land on the target distance. */

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Zap, X } from "lucide-react";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Config = {
   goal: string;
@@ -28,6 +29,11 @@ export function CircuitExercise({
 
   return (
     <div>
+      {cfg.goal && (
+        <div className="mb-2 text-sm text-muted-foreground">
+          <InlineMarkdown source={cfg.goal} parentheticalMath />
+        </div>
+      )}
       <div className="flex items-center justify-between rounded-xl bg-secondary px-3 py-2 text-sm font-bold">
         <span>
           Target: <span className="text-accent">{cfg.targetResistance}Ω</span>

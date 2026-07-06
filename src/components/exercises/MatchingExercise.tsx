@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { ListPanel, ListRow } from "@/components/layout/Page";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Config = { left: string[]; right: string[] };
 
@@ -29,7 +30,9 @@ export function MatchingExercise({
     <ListPanel>
       {cfg.left.map((l, i) => (
         <ListRow key={i} className="flex-wrap sm:flex-nowrap">
-          <span className="min-w-0 flex-1 text-sm font-medium">{l}</span>
+          <span className="min-w-0 flex-1 text-sm font-medium">
+            <InlineMarkdown source={l} parentheticalMath />
+          </span>
           <select
             value={mapping[i]}
             onChange={(e) =>

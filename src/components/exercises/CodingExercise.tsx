@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Play, Lightbulb } from "lucide-react";
+import { InlineMarkdown } from "@/components/Markdown";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -91,7 +92,10 @@ export function CodingExercise({
       {showHint > 0 && cfg.hints && (
         <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
           {cfg.hints.slice(0, showHint).map((h, i) => (
-            <li key={i} className="flex gap-2"><span className="text-muted-foreground">&bull;</span>{h}</li>
+            <li key={i} className="flex gap-2">
+              <span className="text-muted-foreground">&bull;</span>
+              <InlineMarkdown source={h} parentheticalMath />
+            </li>
           ))}
         </ul>
       )}

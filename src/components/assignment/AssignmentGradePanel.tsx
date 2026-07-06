@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ClipboardCheck, Loader2 } from "lucide-react";
-import { Markdown } from "@/components/Markdown";
+import { InlineMarkdown, Markdown } from "@/components/Markdown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { AssignmentGrade } from "@/lib/schemas";
@@ -121,7 +121,9 @@ export function AssignmentGradePanel({
                         {m.met ? "Met" : "Not met"}
                       </Badge>
                     </div>
-                    <p className="mt-1.5 text-sm text-muted-foreground">{m.feedback}</p>
+                    <div className="mt-1.5 text-sm text-muted-foreground">
+                      <InlineMarkdown source={m.feedback} />
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -139,7 +141,9 @@ export function AssignmentGradePanel({
                     {grade.strengths.map((s) => (
                       <li key={s} className="flex gap-2">
                         <span className="text-mint">+</span>
-                        <span>{s}</span>
+                        <span>
+                          <InlineMarkdown source={s} />
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -154,7 +158,9 @@ export function AssignmentGradePanel({
                     {grade.improvements.map((s) => (
                       <li key={s} className="flex gap-2">
                         <span className="text-amber-600">→</span>
-                        <span>{s}</span>
+                        <span>
+                          <InlineMarkdown source={s} />
+                        </span>
                       </li>
                     ))}
                   </ul>

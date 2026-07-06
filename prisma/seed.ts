@@ -65,8 +65,8 @@ async function main() {
       summary: career.blurb,
       category: career.category,
       status: "GENERATING",
-      coverColorFrom: career.from,
-      coverColorTo: career.to,
+      coverColorFrom: career.accent,
+      coverColorTo: career.accent,
       trackSlug: career.slug,
     },
   });

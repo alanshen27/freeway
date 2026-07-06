@@ -60,7 +60,9 @@ const config: Config = {
         sky: { DEFAULT: "#0284c7", soft: "#e0f2fe" },
       },
       backgroundImage: {
-        "course-gradient": "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)",
+        // Flat brand color — kept as a backgroundImage utility so bg-clip-text
+        // call sites (marketing headline) keep working.
+        "course-gradient": "linear-gradient(#4f46e5, #4f46e5)",
       },
       borderRadius: {
         lg: "var(--radius)",

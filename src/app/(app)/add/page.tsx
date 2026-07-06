@@ -113,34 +113,29 @@ function CareerCard({
     <button
       type="button"
       onClick={onSelect}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-white text-left shadow-card transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+      className="group flex flex-col rounded-2xl border border-border bg-white p-5 text-left shadow-card transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
     >
-      <div
-        className="relative flex h-24 items-end p-4"
-        style={{
-          background: `linear-gradient(135deg, ${career.from} 0%, ${career.to} 100%)`,
-        }}
-      >
-        <span className="rounded-md bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white ring-1 ring-white/30">
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className="flex size-11 shrink-0 items-center justify-center rounded-xl"
+          style={{ backgroundColor: `${career.accent}14`, color: career.accent }}
+        >
+          <Icon className="size-5" strokeWidth={1.75} />
+        </span>
+        <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           {formatCategory(career.category)}
         </span>
-        <Icon
-          className="absolute right-3 top-3 size-8 text-white/35 transition-transform group-hover:scale-110"
-          strokeWidth={1.25}
-        />
       </div>
-      <div className="flex flex-1 flex-col gap-1 p-4">
-        <h3 className="text-sm font-semibold leading-snug text-foreground">
-          {career.title}
-        </h3>
-        <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-          {career.blurb}
-        </p>
-        <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-600">
-          Choose track
-          <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-        </span>
-      </div>
+      <h3 className="mt-4 text-sm font-semibold leading-snug text-foreground">
+        {career.title}
+      </h3>
+      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+        {career.blurb}
+      </p>
+      <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-600">
+        Choose track
+        <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+      </span>
     </button>
   );
 }

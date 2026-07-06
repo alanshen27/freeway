@@ -45,8 +45,9 @@ export async function writeWorksheetSection(args: {
     schema: worksheetSchema,
     system:
       "You write practice worksheets as structured JSON: a short intro in Markdown " +
-      "(optional heading, no numbered problems in intro) plus 4-6 items with prompt " +
+      "(optional heading, no numbered problems in intro) plus 6-8 items with prompt " +
       "and optional hint. Each item is one clear short-answer or show-your-work problem. " +
+      "Prompts and hints may use Markdown (inline code, **bold**, $LaTeX$ math). " +
       "Optional diagrams via IMAGE_0 in intro only. Use prompt for DALL·E (instructional " +
       "diagram, no text, centered). JSON only.",
     prompt: `Course: ${args.courseTitle}
@@ -67,6 +68,11 @@ Return JSON { intro, items: [{ prompt, hint? }], images: [...] }. 6-8 practice i
           prompt: "What is one common mistake learners make here, and how would you avoid it?",
         },
         { prompt: "Create a mini example (with numbers or a sketch description) that demonstrates the method." },
+        {
+          prompt: "Explain how this lesson connects to the previous one in the module.",
+          hint: "Focus on which idea the new material builds on.",
+        },
+        { prompt: "Write one question you would ask an expert about this topic, and why." },
       ],
       images: [],
     }),

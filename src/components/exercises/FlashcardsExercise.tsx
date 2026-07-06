@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Check, X, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Card = { front: string; back: string };
 type Config = { cards: Card[] };
@@ -103,7 +104,7 @@ export function FlashcardsExercise({
         >
           <span>
             <span className="block text-lg font-semibold text-foreground">
-              {card.front}
+              <InlineMarkdown source={card.front} parentheticalMath />
             </span>
             <span className="mt-2 block text-xs text-muted-foreground">
               Tap to reveal
@@ -117,7 +118,7 @@ export function FlashcardsExercise({
           )}
         >
           <span className="text-base font-medium text-foreground">
-            {card.back}
+            <InlineMarkdown source={card.back} parentheticalMath />
           </span>
         </span>
       </button>

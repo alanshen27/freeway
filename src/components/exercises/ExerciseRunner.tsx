@@ -5,6 +5,7 @@ import { CheckCircle2, XCircle, HelpCircle, Trophy } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InlineMarkdown } from "@/components/Markdown";
 import { cn } from "@/lib/utils";
 import { CodingExercise } from "./CodingExercise";
 import { CircuitExercise } from "./CircuitExercise";
@@ -49,16 +50,6 @@ export type ExercisePayload = {
 };
 
 type Result = { status: string; score: number; feedback: string };
-
-/** Strip markdown markers so LLM prompts render as plain readable text. */
-function plainPrompt(text: string): string {
-  return text
-    .replace(/```[\w]*\n?/g, "")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
-    .replace(/\*([^*]+)\*/g, "$1")
-    .trim();
-}
 
 export function ExerciseRunner({ exercise }: { exercise: ExercisePayload }) {
   const router = useRouter();
@@ -110,9 +101,9 @@ export function ExerciseRunner({ exercise }: { exercise: ExercisePayload }) {
         </Link>
       </div>
       <h3 className="mt-3 text-base font-semibold">{exercise.title}</h3>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-        {plainPrompt(exercise.prompt)}
-      </p>
+      <div className="mt-2 text-sm leading-relaxed text-foreground">
+        <InlineMarkdown source={exercise.prompt} parentheticalMath />
+      </div>
 
       <div className="mt-5 border-t border-border pt-5">
         {exercise.type === "CODING" && (
@@ -176,8 +167,8 @@ export function ExerciseRunner({ exercise }: { exercise: ExercisePayload }) {
           ) : (
             <XCircle className="mt-0.5 size-4 shrink-0" />
           )}
-          <div className="whitespace-pre-wrap">
-            {result.feedback}
+          <div>
+            <InlineMarkdown source={result.feedback} parentheticalMath />
             {result.status === "PASSED" && (
               <span className="mt-1 flex items-center gap-1 text-xs font-medium">
                 <Trophy className="size-3.5" /> +10 XP

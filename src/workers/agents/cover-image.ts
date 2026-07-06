@@ -4,8 +4,9 @@ import { generateImage } from "@/lib/image-gen";
 import { findStockImage } from "@/lib/serp";
 import { features } from "@/lib/env";
 
+// Truncate over-long prompts — the max is stripped from the wire schema anyway.
 const promptSchema = z.object({
-  prompt: z.string().max(1000),
+  prompt: z.string().transform((p) => p.slice(0, 1000)),
 });
 
 async function imagePrompt(

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { llmJSON } from "@/lib/llm";
+import { manimCodeModel } from "@/lib/llm/models";
 import { createWorkerLogger, type WorkerLogger } from "@/lib/worker-log";
 import { getManimRenderEnvironment, manimLlmPreamble } from "./manim-env";
 import { ManimRenderError } from "./manim-errors";
@@ -25,9 +26,14 @@ async function fixManimScene(args: {
   const { manimScene } = await llmJSON({
     task: "fixManimScene",
     schema: fixSchema,
+    // Heaviest model — Python code generation, where subtle bugs waste render retries.
+    model: manimCodeModel,
     system:
       "You fix broken beat-compiled Manim Community v0.20 scenes. Output strict JSON only. " +
       "Keep ONE self.play or self.wait per logical step — never merge animations. " +
+      "LAYOUT RULES: never draw text where other text already is — FadeOut or move the old " +
+      "mobject first; keep the title parked at the top edge; scale_to_fit_width any Text " +
+      "wider than 12 units; FadeOut everything before a new full-screen visual. " +
       "Respect the worker environment below.",
     prompt: `${manimLlmPreamble(args.renderEnv)}
 

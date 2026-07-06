@@ -157,6 +157,14 @@ export function LogicCircuitExercise({
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_auto]">
       <div>
+        {cfg.expression && (
+          <p className="mb-3 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm">
+            Target expression:{" "}
+            <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[0.85em] font-semibold">
+              {cfg.expression}
+            </code>
+          </p>
+        )}
         <p className="text-xs font-medium text-muted-foreground">
           Add gates ({gates.length}/{maxGates})
         </p>

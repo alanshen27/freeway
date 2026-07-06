@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import { ListPanel } from "@/components/layout/Page";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Config = { items: string[] };
 
@@ -50,7 +51,9 @@ export function OrderingExercise({
           <span className="flex size-6 items-center justify-center rounded bg-secondary text-xs font-medium">
             {i + 1}
           </span>
-          <span className="flex-1 text-sm">{item}</span>
+          <span className="flex-1 text-sm">
+            <InlineMarkdown source={item} parentheticalMath />
+          </span>
           <div className="flex flex-col">
             <button type="button" onClick={() => move(i, -1)} aria-label="Move up" className="text-muted-foreground hover:text-foreground">
               <ChevronUp className="size-4" />

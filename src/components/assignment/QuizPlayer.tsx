@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AssignmentQuizData } from "@/lib/schemas";
+import { InlineMarkdown } from "@/components/Markdown";
 
 export function QuizPlayer({
   assignmentId,
@@ -86,9 +87,9 @@ export function QuizPlayer({
             submitted && picked !== undefined && picked !== item.answerIndex;
           return (
             <li key={i} className="px-4 py-4">
-              <p className="text-sm font-medium">
-                {i + 1}. {item.question}
-              </p>
+              <div className="text-sm font-medium">
+                {i + 1}. <InlineMarkdown source={item.question} parentheticalMath />
+              </div>
               <div className="mt-2 space-y-1">
                 {item.choices.map((c, ci) => (
                   <button
@@ -103,14 +104,14 @@ export function QuizPlayer({
                       wrong && picked === ci && "border-blush bg-blush-soft"
                     )}
                   >
-                    {c}
+                    <InlineMarkdown source={c} parentheticalMath />
                   </button>
                 ))}
               </div>
               {submitted && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {item.explanation}
-                </p>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  <InlineMarkdown source={item.explanation} parentheticalMath />
+                </div>
               )}
             </li>
           );

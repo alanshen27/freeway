@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Config = { rubric: string[]; minWords: number };
 
@@ -38,7 +39,9 @@ export function GradedTextExercise({
       {cfg.rubric && (
         <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
           {cfg.rubric.map((r, i) => (
-            <li key={i}>• {r}</li>
+            <li key={i}>
+              • <InlineMarkdown source={r} parentheticalMath />
+            </li>
           ))}
         </ul>
       )}

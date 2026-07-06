@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Lightbulb } from "lucide-react";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Config = { unit?: string; hint?: string };
 
@@ -43,10 +44,10 @@ export function NumericExercise({
       {cfg.hint && (
         <div className="mt-4">
           {showHint ? (
-            <p className="flex items-start gap-2 rounded-lg bg-lemon-soft px-3 py-2 text-sm text-lemon">
+            <div className="flex items-start gap-2 rounded-lg bg-lemon-soft px-3 py-2 text-sm text-lemon">
               <Lightbulb className="mt-0.5 size-4 shrink-0" />
-              {cfg.hint}
-            </p>
+              <InlineMarkdown source={cfg.hint} parentheticalMath />
+            </div>
           ) : (
             <button
               type="button"

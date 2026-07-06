@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Force = { id: string; label: string; angleDeg: number; required: boolean };
 type Config = {
@@ -101,7 +102,7 @@ export function FreeBodyExercise({
               )}
             >
               {active ? "− " : "+ "}
-              {f.label}
+              <InlineMarkdown source={f.label} />
             </button>
           );
         })}

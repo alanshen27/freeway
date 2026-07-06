@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, XCircle, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InlineMarkdown } from "@/components/Markdown";
 import {
   checkGeometryConstraint,
   type GeoConstraint,
@@ -225,9 +226,9 @@ export function GeometryExercise({
         )}
       </div>
       {showHint && cfg.hint && (
-        <p className="mt-2 rounded-lg border border-lemon/30 bg-lemon-soft px-3 py-2 text-xs text-foreground">
-          {cfg.hint}
-        </p>
+        <div className="mt-2 rounded-lg border border-lemon/30 bg-lemon-soft px-3 py-2 text-xs text-foreground">
+          <InlineMarkdown source={cfg.hint} parentheticalMath />
+        </div>
       )}
     </div>
   );

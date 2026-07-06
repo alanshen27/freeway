@@ -63,13 +63,13 @@ export async function writeExercise(args: {
     schema: exerciseSchema,
     system:
       "You design a single self-contained, auto-checkable interactive exercise. " +
-      "Output strict JSON. The prompt field must be plain text only — no markdown, " +
-      "no backticks, no **bold**, no code fences. Use line breaks and simple dashes for lists. " +
+      "Output strict JSON. The prompt field is rendered as Markdown — you may use " +
+      "inline code, **bold**, $LaTeX$ math, and dash lists. Keep it concise. " +
       typeInstructions[args.type],
     prompt: `Type: ${args.type}\nCourse: ${args.courseTitle}\nLesson: ${args.lessonTitle}\nConcepts: ${args.concepts.join(", ")}\n
 Return JSON { title, prompt, difficulty, config, solution? }.
 config is mandatory — follow the shape for ${args.type} exactly.
-prompt must be plain English instructions (no markdown formatting).`,
+prompt: clear English instructions (Markdown allowed).`,
     mock: () => fallback,
   });
 

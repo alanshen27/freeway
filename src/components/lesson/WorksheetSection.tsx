@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Markdown } from "@/components/Markdown";
+import { InlineMarkdown, Markdown } from "@/components/Markdown";
 import type { WorksheetSectionData } from "@/lib/schemas";
 import { resolveWorksheetContent } from "@/lib/worksheet";
 
@@ -74,10 +74,12 @@ export function WorksheetSection({
             className="rounded-xl border border-border bg-white p-4 shadow-card"
           >
             <label htmlFor={`ws-${sectionId}-${i}`} className="block text-sm font-medium">
-              {i + 1}. {item.prompt}
+              {i + 1}. <InlineMarkdown source={item.prompt} parentheticalMath />
             </label>
             {item.hint ? (
-              <p className="mt-1 text-xs text-muted-foreground">{item.hint}</p>
+              <div className="mt-1 text-xs text-muted-foreground">
+                <InlineMarkdown source={item.hint} parentheticalMath />
+              </div>
             ) : null}
             <textarea
               id={`ws-${sectionId}-${i}`}

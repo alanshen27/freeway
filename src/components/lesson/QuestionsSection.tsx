@@ -11,6 +11,7 @@ import {
   sectionTotalMarks,
 } from "@/lib/questions";
 import { Button } from "@/components/ui/button";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type McqResult = { kind: "mcq"; correct: boolean; marks: number; maxMarks: number };
 type OpenResult = {
@@ -130,9 +131,9 @@ export function QuestionsSection({
               className="rounded-xl border border-border bg-white p-4 shadow-card"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <p className="text-sm font-medium">
-                  {i + 1}. {item.question}
-                </p>
+                <div className="text-sm font-medium">
+                  {i + 1}. <InlineMarkdown source={item.question} parentheticalMath />
+                </div>
                 <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
                   {maxMarks} mark{maxMarks === 1 ? "" : "s"}
                 </span>
@@ -158,7 +159,7 @@ export function QuestionsSection({
                           wrong && "border-blush bg-blush-soft"
                         )}
                       >
-                        {c}
+                        <InlineMarkdown source={c} parentheticalMath />
                       </button>
                     );
                   })}
@@ -185,15 +186,19 @@ export function QuestionsSection({
                     {result.kind === "mcq" && !result.correct ? " · Incorrect" : null}
                   </p>
                   {result.kind === "mcq" ? (
-                    <p className="mt-1 text-muted-foreground">{item.explanation}</p>
+                    <div className="mt-1 text-muted-foreground">
+                      <InlineMarkdown source={item.explanation ?? ""} parentheticalMath />
+                    </div>
                   ) : (
-                    <p className="mt-1 text-muted-foreground">{result.feedback}</p>
+                    <div className="mt-1 text-muted-foreground">
+                      <InlineMarkdown source={result.feedback} parentheticalMath />
+                    </div>
                   )}
                   {open && item.modelAnswer ? (
-                    <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
+                    <div className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">Answer key: </span>
-                      {item.modelAnswer}
-                    </p>
+                      <InlineMarkdown source={item.modelAnswer} parentheticalMath />
+                    </div>
                   ) : null}
                 </div>
               ) : null}

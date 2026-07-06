@@ -26,8 +26,9 @@ databases:
     region: oregon
 
 envVarGroups:
-  - name: freeway-llm
+  - name: freeway-env
     envVars:
+      # LLM providers
       - key: DEEPSEEK_API_KEY
         sync: false
       - key: DEEPSEEK_BASE_URL
@@ -40,9 +41,7 @@ envVarGroups:
         value: gpt-4o-mini
       - key: OPENAI_IMAGE_MODEL
         value: gpt-image-1
-
-  - name: freeway-supabase
-    envVars:
+      # Supabase
       - key: NEXT_PUBLIC_SUPABASE_URL
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -51,18 +50,14 @@ envVarGroups:
         sync: false
       - key: SUPABASE_VIDEO_BUCKET
         value: videos
-
-  - name: freeway-integrations
-    envVars:
+      # Integrations
       - key: SERPAPI_KEY
         sync: false
       - key: ELEVENLABS_API_KEY
         sync: false
       - key: MANIM_ENABLED
         value: "0"
-
-  - name: freeway-logging
-    envVars:
+      # Logging
       - key: LOG_LEVEL
         value: info
       - key: LOG_PRETTY
@@ -103,10 +98,7 @@ services:
           type: keyvalue
           name: freeway-redis
           property: connectionString
-      - fromGroup: freeway-llm
-      - fromGroup: freeway-supabase
-      - fromGroup: freeway-integrations
-      - fromGroup: freeway-logging
+      - fromGroup: freeway-env
       # Public site URL for OG tags, sitemap, and absolute links.
       # Set to https://<your-service>.onrender.com after first deploy.
       - key: NEXT_PUBLIC_APP_URL
@@ -137,10 +129,7 @@ services:
           type: keyvalue
           name: freeway-redis
           property: connectionString
-      - fromGroup: freeway-llm
-      - fromGroup: freeway-supabase
-      - fromGroup: freeway-integrations
-      - fromGroup: freeway-logging
+      - fromGroup: freeway-env
       - key: WORKER_CONCURRENCY
         value: "1"
       - key: SECTION_CONCURRENCY

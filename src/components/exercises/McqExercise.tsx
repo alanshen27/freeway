@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Config = { choices: string[] };
 
@@ -31,7 +32,7 @@ export function McqExercise({
               : "hover:bg-secondary/50"
           )}
         >
-          {c}
+          <InlineMarkdown source={c} parentheticalMath />
         </button>
       ))}
     </div>

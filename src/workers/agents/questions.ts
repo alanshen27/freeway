@@ -13,7 +13,8 @@ export async function writeQuestionsSection(args: {
     system:
       "You write review questions for a professional LMS. Mix multiple-choice (type mcq) " +
       "and open-ended (type open) items. Open items need markScheme (bullet criteria for " +
-      "partial credit) and modelAnswer (concise ideal answer). Assign marks 1-3 per item. JSON only.",
+      "partial credit) and modelAnswer (concise ideal answer). Assign marks 1-3 per item. " +
+      "Question text, choices, and explanations may use Markdown (inline code, **bold**, $LaTeX$ math). JSON only.",
     prompt: `Course: ${args.courseTitle}
 Subject: ${args.subjectTitle}
 Lesson: ${args.lessonTitle}
@@ -62,6 +63,19 @@ Return { title, items: [...] } with 5-7 items — at least 2 mcq and at least 2 
             "- Identifies a plausible mistake (1 mark)\n- Gives a concrete prevention strategy (1 mark)",
           modelAnswer:
             "Rushing to formulas without checking units; I'd write units beside each variable and sanity-check dimensions first.",
+        },
+        {
+          type: "mcq" as const,
+          question: "Which habit best supports long-term retention of this material?",
+          choices: [
+            "Spaced practice with worked problems",
+            "One long cramming session",
+            "Reading summaries only",
+            "Watching videos passively",
+          ],
+          answerIndex: 0,
+          explanation: "Spaced, active practice outperforms passive review.",
+          marks: 1,
         },
       ],
     }),

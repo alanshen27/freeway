@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { InlineMarkdown } from "@/components/Markdown";
 
 type Item = { label: string; category: number };
 type Config = { categories: string[]; items: Item[] };
@@ -79,7 +80,7 @@ export function CategorizeExercise({
                     : "border-border bg-white text-foreground hover:border-slate-300"
                 )}
               >
-                {cfg.items[i].label}
+                <InlineMarkdown source={cfg.items[i].label} parentheticalMath />
               </button>
             ))}
           </div>
@@ -137,7 +138,7 @@ export function CategorizeExercise({
                     title="Tap to remove"
                     className="rounded-md bg-white px-2 py-1 text-xs font-medium text-foreground shadow-sm ring-1 ring-border hover:ring-blush/50"
                   >
-                    {it.label}
+                    <InlineMarkdown source={it.label} parentheticalMath />
                   </span>
                 ))}
                 {contents.length === 0 && (

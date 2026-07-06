@@ -5,8 +5,8 @@ export type CareerOption = {
   title: string;
   category: CourseCategory;
   blurb: string;
-  from: string;
-  to: string;
+  /** Muted accent for the track icon/tint — no gradients. */
+  accent: string;
 };
 
 // Curated career tracks the user can choose to generate a course from.
@@ -17,48 +17,42 @@ export const CAREERS: CareerOption[] = [
     title: "Software Engineering",
     category: "SOFTWARE_ENGINEERING",
     blurb: "Build real programs: data structures, algorithms, and systems.",
-    from: "#ec4899",
-    to: "#8b5cf6",
+    accent: "#7c3aed",
   },
   {
     slug: "ai-engineering",
     title: "AI Engineering",
     category: "AI_ENGINEERING",
     blurb: "From tensors to transformers — ship intelligent systems.",
-    from: "#6366f1",
-    to: "#06b6d4",
+    accent: "#4f46e5",
   },
   {
     slug: "mechanical-engineering",
     title: "Mechanical Engineering",
     category: "MECHANICAL_ENGINEERING",
     blurb: "Statics, dynamics, and the machines that move the world.",
-    from: "#f59e0b",
-    to: "#ef4444",
+    accent: "#d97706",
   },
   {
     slug: "nuclear-engineering",
     title: "Nuclear Engineering",
     category: "PHYSICS",
     blurb: "Reactor physics, materials, and energy at the atomic scale.",
-    from: "#ec4899",
-    to: "#8b5cf6",
+    accent: "#e11d48",
   },
   {
     slug: "introduction-to-physics",
     title: "Introduction to Physics",
     category: "PHYSICS",
     blurb: "Mass, momentum, and the laws behind everything.",
-    from: "#10b981",
-    to: "#3b82f6",
+    accent: "#059669",
   },
   {
     slug: "materials-science",
     title: "Materials Science",
     category: "MECHANICAL_ENGINEERING",
     blurb: "Why materials behave the way they do — and how to pick them.",
-    from: "#f43f5e",
-    to: "#f59e0b",
+    accent: "#0284c7",
   },
 ];
 

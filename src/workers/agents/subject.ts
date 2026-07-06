@@ -11,6 +11,71 @@ import {
   type SubjectBlueprint,
 } from "@/lib/schemas";
 
+type SectionPlanItem = SubjectBlueprint["lessons"][number]["sections"][number];
+
+/** Per-lesson section quota from the 12-step template, in backfill priority order. */
+const SECTION_QUOTA: [SectionPlanItem["type"], number][] = [
+  ["EXERCISE", 3],
+  ["QUESTIONS", 2],
+  ["WORKSHEET", 3],
+  ["READING", 2],
+  ["VIDEO", 2],
+];
+
+const BACKFILL_TITLES: Record<SectionPlanItem["type"], string> = {
+  EXERCISE: "Hands-on challenge",
+  QUESTIONS: "Checkpoint questions",
+  WORKSHEET: "Extra practice",
+  READING: "Further reading",
+  VIDEO: "Recap video",
+};
+
+/**
+ * The planner LLM sometimes returns fewer sections than the 12-step template
+ * (the schema tolerates as few as 3) or omits exerciseType. Every planned exercise
+ * and question set is essential content, so backfill anything that was
+ * dropped instead of silently generating a thinner lesson.
+ */
+function normalizeLessonSections(
+  sections: SectionPlanItem[],
+  lessonIndex: number
+): SectionPlanItem[] {
+  const out = [...sections];
+  const plannedTypes = exerciseTypesForLesson(lessonIndex, 3);
+
+  // Ensure every EXERCISE section has a type — the pipeline would otherwise
+  // fall back to MCQ, losing the planned variety.
+  let typeCursor = 0;
+  for (const sec of out) {
+    if (sec.type === "EXERCISE" && !sec.exerciseType) {
+      const used = new Set(
+        out.filter((s) => s.type === "EXERCISE" && s.exerciseType).map((s) => s.exerciseType)
+      );
+      sec.exerciseType =
+        plannedTypes.find((t) => !used.has(t)) ??
+        plannedTypes[typeCursor++ % plannedTypes.length];
+    }
+  }
+
+  for (const [type, quota] of SECTION_QUOTA) {
+    let count = out.filter((s) => s.type === type).length;
+    while (count < quota) {
+      const sec: SectionPlanItem = { type, title: BACKFILL_TITLES[type] };
+      if (type === "EXERCISE") {
+        const used = new Set(
+          out.filter((s) => s.type === "EXERCISE").map((s) => s.exerciseType)
+        );
+        sec.exerciseType =
+          plannedTypes.find((t) => !used.has(t)) ?? plannedTypes[count % plannedTypes.length];
+      }
+      out.push(sec);
+      count++;
+    }
+  }
+
+  return out;
+}
+
 type PlanInput = {
   courseTitle: string;
   subjectTitle: string;
@@ -85,7 +150,7 @@ Keep it lightweight — this is a taster, not a full module.`,
     return `Lesson ${li + 1} EXERCISE sections must use: ${types.join(", ")}`;
   }).join("\n");
 
-  return llmJSON({
+  const blueprint = await llmJSON({
     task: "planSubjectLessons",
     schema: subjectBlueprintSchema,
     system:
@@ -116,6 +181,13 @@ Content rules:
 - Lesson titles should progress: foundations → practice → application → synthesis → capstone.`,
     mock: () => mockSubjectBlueprint(input, scale),
   });
+
+  return {
+    lessons: blueprint.lessons.map((lesson, li) => ({
+      ...lesson,
+      sections: normalizeLessonSections(lesson.sections, li),
+    })),
+  };
 }
 
 function mockSubjectBlueprint(input: PlanInput, scale: CourseScale): SubjectBlueprint {

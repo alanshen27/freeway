@@ -107,7 +107,8 @@ export function estimateDurationFromBeats(beats: VideoBeat[]): number {
         break;
     }
   }
-  return Math.round(Math.max(90, Math.min(180, total)));
+  // Long beat lists are allowed — cap generously so narration length keeps up.
+  return Math.round(Math.max(60, Math.min(480, total)));
 }
 
 /**
@@ -127,6 +128,8 @@ export function compileBeatsToManim(
 
   let labelCounter = 0;
   let hasTitle = false;
+  let titleAtTop = false;
+  let captionVar: string | null = null;
   let axesVar: string | null = null;
   let graphVar: string | null = null;
   let dotVar: string | null = null;
@@ -138,33 +141,63 @@ export function compileBeatsToManim(
     active.push(name);
   };
 
+  const untrack = (name: string) => {
+    const idx = active.indexOf(name);
+    if (idx !== -1) active.splice(idx, 1);
+    if (lastMob === name) lastMob = active[active.length - 1] ?? null;
+  };
+
+  /** Cap width so long Text lines never overflow the 14-unit frame. */
+  const fitWidth = (name: string, max: number) =>
+    `        if ${name}.width > ${max}: ${name}.scale_to_fit_width(${max})`;
+
   for (const beat of normalizeVideoBeats(beats)) {
     switch (beat.type) {
       case "title": {
         lines.push(
           `        title = Text(${pyStr(beat.text)}, font_size=44, weight=BOLD)`
         );
+        lines.push(fitWidth("title", 12));
         lines.push(`        self.play(Write(title), run_time=${runTime(beat, 2.5)})`);
         hasTitle = true;
+        titleAtTop = false;
         track("title");
         break;
       }
       case "shift_title_up":
-        if (hasTitle) {
+        if (hasTitle && !titleAtTop) {
           lines.push(
             `        self.play(title.animate.to_edge(UP), run_time=${runTime(beat, 1)})`
           );
+          titleAtTop = true;
         }
         break;
       case "text": {
         const name = `caption_${++labelCounter}`;
+        // A centered title would collide with the caption — park it at the top first.
+        if (hasTitle && !titleAtTop) {
+          lines.push(`        self.play(title.animate.to_edge(UP), run_time=1)`);
+          titleAtTop = true;
+        }
         lines.push(`        ${name} = Text(${pyStr(beat.text)}, font_size=30)`);
+        lines.push(fitWidth(name, 11));
         if (hasTitle) {
           lines.push(`        ${name}.next_to(title, DOWN, buff=0.45)`);
+        } else {
+          lines.push(`        ${name}.to_edge(UP, buff=0.8)`);
         }
-        lines.push(
-          `        self.play(FadeIn(${name}, shift=UP), run_time=${runTime(beat, 2.5)})`
-        );
+        // Replace the previous caption — never draw new text over old text.
+        if (captionVar) {
+          lines.push(
+            `        self.play(FadeOut(${captionVar}), FadeIn(${name}, shift=UP), run_time=${runTime(beat, 2.5)})`
+          );
+          untrack(captionVar);
+        } else {
+          lines.push(
+            `        self.play(FadeIn(${name}, shift=UP), run_time=${runTime(beat, 2.5)})`
+          );
+        }
+        captionVar = name;
         track(name);
         break;
       }
@@ -179,23 +212,41 @@ export function compileBeatsToManim(
           active.length = 0;
           lastMob = null;
         }
+        // Everything on screen is gone — later beats must not reference it.
+        hasTitle = false;
+        titleAtTop = false;
+        captionVar = null;
+        axesVar = null;
+        graphVar = null;
+        dotVar = null;
         break;
       case "axes":
+        // Keep the header area clear before the graph takes the stage.
+        if (hasTitle && !titleAtTop) {
+          lines.push(`        self.play(title.animate.to_edge(UP), run_time=1)`);
+          titleAtTop = true;
+        }
         axesVar = "axes";
         graphVar = null;
         dotVar = null;
         lines.push(
           "        axes = Axes(x_range=[-3, 3, 1], y_range=[-2, 2, 1], x_length=6, y_length=3.5)"
         );
+        lines.push(`        axes.shift(DOWN * 0.4)`);
         lines.push(`        self.play(Create(axes), run_time=${runTime(beat, 2.5)})`);
         track(axesVar);
         break;
       case "plot_line": {
         if (!axesVar) {
+          if (hasTitle && !titleAtTop) {
+            lines.push(`        self.play(title.animate.to_edge(UP), run_time=1)`);
+            titleAtTop = true;
+          }
           axesVar = "axes";
           lines.push(
             "        axes = Axes(x_range=[-3, 3, 1], y_range=[-2, 2, 1], x_length=6, y_length=3.5)"
           );
+          lines.push(`        axes.shift(DOWN * 0.4)`);
           lines.push(`        self.play(Create(axes), run_time=2.5)`);
           track(axesVar);
         }
@@ -214,7 +265,9 @@ export function compileBeatsToManim(
         if (!axesVar) break;
         dotVar = `dot_${++labelCounter}`;
         lines.push(
-          `        ${dotVar} = Dot(color=YELLOW).move_to(${axesVar}.c2p(-2, -0.7))`
+          graphVar
+            ? `        ${dotVar} = Dot(color=YELLOW).move_to(${graphVar}.get_start())`
+            : `        ${dotVar} = Dot(color=YELLOW).move_to(${axesVar}.c2p(-2, -0.7))`
         );
         lines.push(
           `        self.play(FadeIn(${dotVar}), run_time=${runTime(beat, 1.5)})`

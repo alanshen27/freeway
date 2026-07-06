@@ -1,4 +1,5 @@
 import { llmJSON, llmText } from "@/lib/llm";
+import { manimCodeModel } from "@/lib/llm/models";
 import { scaleForCourse } from "@/lib/course-scale";
 import { videoBeatPlanSchema, type VideoBeat, type VideoSpec } from "@/lib/schemas";
 import { getManimRenderEnvironment, manimLlmPreamble } from "@/workers/render/manim-env";
@@ -31,6 +32,9 @@ export async function writeVideo(args: {
   const plan = await llmJSON({
     task: "planVideoBeats",
     schema: videoBeatPlanSchema,
+    // Heaviest model: beat plans become rendered Manim code, and layout
+    // mistakes (overlapping text, missing clears) are costly to fix.
+    model: manimCodeModel,
     system:
       "You plan Manim explainer videos as an ordered list of BEATS. Each beat is " +
       "exactly ONE on-screen action. On-screen text must be short, grammatical, and " +
@@ -47,7 +51,8 @@ BEAT PLANNING:
 - ${beatMin}–${beatMax} beats, one visual action each (compiler emits one self.play or self.wait)
 - durationSec: ${durMin}–${durMax} seconds (target ~${Math.round((durMin + durMax) / 2)}s for full lessons)
 - title.text = lesson name (short)
-- text beats: 3–8 words max, complete phrase
+- text beats: 3–8 words max, complete phrase — each new text beat REPLACES the previous caption on screen
+- use fade_out to clear the screen before a new visual chapter (e.g. before axes)
 - Build a full mini-lesson arc: title → captions → clear screen → graph/demo → highlight → recap
 - Include multiple text beats, waits, graph sequences (axes, plot_line, place_dot, move_dot), and emphasis (indicate, circumscribe, flash)
 - questions: 2–3 MCQs tied to THIS lesson, atSec spread across durationSec
@@ -92,15 +97,32 @@ Write the full voiceover (${args.isTaster ? "6–8" : "12–18"} sentences):
   const className = safeSceneClassName(args.lessonTitle);
   const manimScene = compileBeatsToManim(className, plan.beats);
 
+  // Salvage usable questions; drop malformed ones instead of failing the video.
+  const validQuestions = plan.questions.filter(
+    (q) =>
+      q.question.trim().length > 0 &&
+      q.choices !== undefined &&
+      q.choices.length >= 2 &&
+      q.answerIndex !== undefined &&
+      q.answerIndex < q.choices.length
+  );
+  const questions = validQuestions.map((q, i) => ({
+    question: q.question,
+    choices: q.choices!,
+    answerIndex: q.answerIndex!,
+    // Missing timestamps get spread evenly across the video.
+    atSec: Math.min(
+      q.atSec ?? Math.round(((i + 1) * durationSec) / (validQuestions.length + 1)),
+      durationSec - 5
+    ),
+  }));
+
   return {
     title: plan.title,
     narration: narration.trim(),
     manimScene,
     durationSec,
-    questions: plan.questions.map((q) => ({
-      ...q,
-      atSec: Math.min(q.atSec, durationSec - 5),
-    })),
+    questions,
   };
 }
 

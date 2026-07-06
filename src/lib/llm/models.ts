@@ -52,3 +52,13 @@ export const planCourseFallback: ChatModelConfig = {
   model: "deepseek-v4-pro",
   thinking: { type: "disabled" },
 };
+
+/**
+ * Heaviest chat model — Manim beat planning and scene fixing, where layout
+ * and code bugs are expensive (each bad scene burns render + fixer retries).
+ */
+export const manimCodeModel: ChatModelConfig = {
+  provider: "deepseek",
+  model: "deepseek-v4-pro",
+  thinking: { type: "disabled" },
+};

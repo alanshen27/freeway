@@ -131,6 +131,103 @@ function buildComponents(mentionBadges: boolean): Components {
   };
 }
 
+/**
+ * Inline-friendly renderers: inherit the surrounding text color/size so
+ * markdown can live inside buttons, labels, list rows, and colored feedback
+ * boxes. Paragraphs after the first render as blocks for spacing.
+ */
+const inlineComponents: Components = {
+  p: ({ children }) => <span className="md-line">{children}</span>,
+  h1: ({ children }) => <span className="md-line font-semibold">{children}</span>,
+  h2: ({ children }) => <span className="md-line font-semibold">{children}</span>,
+  h3: ({ children }) => <span className="md-line font-semibold">{children}</span>,
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  ul: ({ children }) => (
+    <ul className="my-1.5 list-disc space-y-0.5 pl-5 text-left leading-relaxed">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="my-1.5 list-decimal space-y-0.5 pl-5 text-left leading-relaxed">{children}</ol>
+  ),
+  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  blockquote: ({ children }) => (
+    <span className="my-1.5 block border-l-2 border-current pl-2 opacity-80">
+      {children}
+    </span>
+  ),
+  pre: ({ children }) => (
+    <pre className="hljs-code my-2 overflow-x-auto rounded-lg border border-slate-700/50 text-left">
+      {children}
+    </pre>
+  ),
+  code: ({ className, children, ...props }) => {
+    if (className?.includes("hljs")) {
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    }
+    return (
+      <code
+        className="rounded bg-black/[0.07] px-1 py-0.5 font-mono text-[0.85em]"
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
+  img: () => null,
+  a: ({ href, children }) => (
+    <a
+      href={href}
+      className="underline underline-offset-2"
+      target="_blank"
+      rel="noreferrer"
+    >
+      {children}
+    </a>
+  ),
+  hr: () => null,
+};
+
+/** Convert single newlines to markdown hard breaks, leaving fenced code intact. */
+function preserveLineBreaks(src: string): string {
+  return src
+    .split(/(```[\s\S]*?(?:```|$))/g)
+    .map((chunk, i) =>
+      i % 2 === 1 ? chunk : chunk.replace(/(?<!\n)\n(?!\n)/g, "  \n")
+    )
+    .join("");
+}
+
+/**
+ * Markdown for short LLM-generated strings embedded in other UI — worksheet
+ * problems, quiz questions/choices, hints, flashcards, grading feedback.
+ * Inherits color and font-size from the parent and keeps literal line breaks.
+ */
+export function InlineMarkdown({
+  source,
+  parentheticalMath = false,
+}: {
+  source: string;
+  parentheticalMath?: boolean;
+}) {
+  let prepared = parentheticalMath ? convertParentheticalMath(source) : source;
+  prepared = preserveLineBreaks(prepared);
+
+  return (
+    <span className="[&>.md-line+.md-line]:mt-1.5 [&>.md-line+.md-line]:block">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeHighlight, rehypeKatex]}
+        components={inlineComponents}
+      >
+        {prepared}
+      </ReactMarkdown>
+    </span>
+  );
+}
+
 export function Markdown({
   source,
   parentheticalMath = false,
