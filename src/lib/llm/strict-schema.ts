@@ -10,6 +10,18 @@ const STRIP_KEYS = new Set([
   "$schema",
 ]);
 
+/**
+ * Thrown when a schema uses constructs strict mode cannot express
+ * (z.record → additionalProperties as a schema, z.any/z.unknown → empty schema).
+ * Callers skip the strict attempt and go straight to json_object mode.
+ */
+export class StrictSchemaUnsupportedError extends Error {
+  constructor(reason: string) {
+    super(reason);
+    this.name = "StrictSchemaUnsupportedError";
+  }
+}
+
 /** Convert Zod → DeepSeek strict tool parameters (additionalProperties: false everywhere). */
 export function zodToStrictToolParameters(schema: z.ZodTypeAny): Record<string, unknown> {
   const raw = zodToJsonSchema(schema, {
@@ -36,15 +48,23 @@ function normalizeStrictNode(node: unknown): unknown {
     out[key] = value;
   }
 
-  if (out.type === "object" && out.properties && typeof out.properties === "object") {
-    const props = out.properties as Record<string, unknown>;
-    const normalized: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(props)) {
-      normalized[key] = normalizeStrictNode(value);
+  if (out.type === "object") {
+    if (out.properties && typeof out.properties === "object") {
+      const props = out.properties as Record<string, unknown>;
+      const normalized: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(props)) {
+        normalized[key] = normalizeStrictNode(value);
+      }
+      out.properties = normalized;
+      out.required = Object.keys(normalized);
+      out.additionalProperties = false;
+    } else {
+      // z.record() — additionalProperties would be a schema (a "map"), which
+      // DeepSeek strict mode rejects ("expected a boolean").
+      throw new StrictSchemaUnsupportedError(
+        "free-form object (z.record) cannot be expressed in strict mode"
+      );
     }
-    out.properties = normalized;
-    out.required = Object.keys(normalized);
-    out.additionalProperties = false;
   }
 
   if (out.type === "array" && out.items) {

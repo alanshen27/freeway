@@ -4,7 +4,10 @@ import { features } from "@/lib/env";
 import { createLogger } from "@/lib/logger";
 import type { ChatModelConfig } from "./models";
 import { getDeepSeekBetaClient } from "./providers";
-import { zodToStrictToolParameters } from "./strict-schema";
+import {
+  StrictSchemaUnsupportedError,
+  zodToStrictToolParameters,
+} from "./strict-schema";
 import { recordLlmUsage } from "./cost";
 
 const log = createLogger("llm-structured");
@@ -22,8 +25,13 @@ function isStrictSchemaRejected(err: unknown): boolean {
   );
 }
 
-function chatExtraBody(config: ChatModelConfig): Record<string, unknown> | undefined {
-  if (config.provider !== "deepseek" || !config.thinking) return undefined;
+/**
+ * DeepSeek-specific body fields (e.g. `thinking`). The Node SDK has no
+ * `extra_body` like the Python SDK — unknown params must be spread directly
+ * into the request params, which the SDK passes through to the JSON body.
+ */
+function chatExtraBody(config: ChatModelConfig): Record<string, unknown> {
+  if (config.provider !== "deepseek" || !config.thinking) return {};
   return { thinking: config.thinking };
 }
 
@@ -46,7 +54,15 @@ export async function runStrictToolCompletion<T>(args: {
   try {
     parameters = zodToStrictToolParameters(args.schema);
   } catch (err) {
-    log.warn("failed to build strict tool schema", { task: args.task }, err);
+    if (err instanceof StrictSchemaUnsupportedError) {
+      // Expected for schemas with z.record()/z.any() — not an error.
+      log.debug("schema not strict-compatible — using json_object", {
+        task: args.task,
+        reason: err.message,
+      });
+    } else {
+      log.warn("failed to build strict tool schema", { task: args.task }, err);
+    }
     return { error: "local schema conversion failed", schemaRejected: true };
   }
 
@@ -63,7 +79,6 @@ export async function runStrictToolCompletion<T>(args: {
   ];
 
   try {
-    const extraBody = chatExtraBody(args.config);
     const res = await client.chat.completions.create({
       model: args.config.model,
       messages: [
@@ -72,7 +87,7 @@ export async function runStrictToolCompletion<T>(args: {
       ],
       tools,
       tool_choice: { type: "function", function: { name: TOOL_NAME } },
-      ...(extraBody ? { extra_body: extraBody } : {}),
+      ...chatExtraBody(args.config),
     });
 
     const usage = res.usage;

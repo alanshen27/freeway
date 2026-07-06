@@ -1,0 +1,147 @@
+# Render Blueprint for Freeway — https://render.com/docs/blueprint-spec
+#
+# Deploy: connect this repo in the Render dashboard → New → Blueprint → pick
+# render.yaml. On first deploy, Render prompts for secrets marked `sync: false`.
+#
+# Services provisioned:
+#   freeway-web     Next.js app (prisma migrate deploy on boot, /api/health)
+#   freeway-worker  BullMQ course-generation worker
+#   freeway-redis   Key Value (Redis) — noeviction policy required for BullMQ
+#   freeway-db      Managed Postgres
+#
+# After first deploy, set NEXT_PUBLIC_APP_URL to your web service URL
+# (e.g. https://freeway-web.onrender.com) so OG tags and sitemap use the
+# correct origin. Render also injects RENDER_EXTERNAL_URL on the web service.
+#
+# NOTE: Manim video rendering is disabled (MANIM_ENABLED=0) because the native
+# Node runtime has no manim/LaTeX/ffmpeg. The app falls back to its themed
+# in-app video player. For real mp4s, switch the worker to runtime: docker
+# with a manim-capable image.
+
+databases:
+  - name: freeway-db
+    databaseName: freeway
+    user: freeway
+    plan: basic-256mb
+    region: oregon
+
+envVarGroups:
+  - name: freeway-llm
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: DEEPSEEK_BASE_URL
+        value: https://api.deepseek.com
+      - key: ZAI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_IMAGE_MODEL
+        value: gpt-image-1
+
+  - name: freeway-supabase
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_VIDEO_BUCKET
+        value: videos
+
+  - name: freeway-integrations
+    envVars:
+      - key: SERPAPI_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: MANIM_ENABLED
+        value: "0"
+
+  - name: freeway-logging
+    envVars:
+      - key: LOG_LEVEL
+        value: info
+      - key: LOG_PRETTY
+        value: "0"
+
+services:
+  # ---- Redis (BullMQ queue) ------------------------------------------------
+  - type: keyvalue
+    name: freeway-redis
+    plan: free
+    region: oregon
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+  # ---- Web (Next.js + marketing landing) -----------------------------------
+  - type: web
+    name: freeway-web
+    runtime: node
+    plan: starter
+    region: oregon
+    autoDeployTrigger: commit
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    startCommand: npm run migrate:deploy && npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: freeway-db
+          property: connectionString
+      - key: DIRECT_URL
+        fromDatabase:
+          name: freeway-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: freeway-redis
+          property: connectionString
+      - fromGroup: freeway-llm
+      - fromGroup: freeway-supabase
+      - fromGroup: freeway-integrations
+      - fromGroup: freeway-logging
+      # Public site URL for OG tags, sitemap, and absolute links.
+      # Set to https://<your-service>.onrender.com after first deploy.
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+
+  # ---- Background worker (BullMQ) -------------------------------------------
+  - type: worker
+    name: freeway-worker
+    runtime: node
+    plan: starter
+    region: oregon
+    autoDeployTrigger: commit
+    buildCommand: npm ci --include=dev && npx prisma generate
+    startCommand: npm run worker:once
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: freeway-db
+          property: connectionString
+      - key: DIRECT_URL
+        fromDatabase:
+          name: freeway-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: freeway-redis
+          property: connectionString
+      - fromGroup: freeway-llm
+      - fromGroup: freeway-supabase
+      - fromGroup: freeway-integrations
+      - fromGroup: freeway-logging
+      - key: WORKER_CONCURRENCY
+        value: "1"
+      - key: SECTION_CONCURRENCY
+        value: "8"

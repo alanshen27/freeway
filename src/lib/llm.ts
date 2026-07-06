@@ -61,7 +61,7 @@ type LLMArgs<T> = {
 
 type VisionContent = OpenAI.Chat.Completions.ChatCompletionContentPart[];
 
-function useMock(task: string, reason: string): boolean {
+function shouldUseMock(task: string, reason: string): boolean {
   if (features.llmMock) {
     log.warn("mock fallback (LLM_ALLOW_MOCK=1)", { task, reason });
     return true;
@@ -70,7 +70,7 @@ function useMock(task: string, reason: string): boolean {
 }
 
 function failOrMock<T>(task: string, reason: string, mock: () => T): T {
-  if (useMock(task, reason)) return mock();
+  if (shouldUseMock(task, reason)) return mock();
   if (reason.includes("not configured")) throw new LLMNotConfiguredError();
   throw new LLMGenerationError(task, reason);
 }
@@ -90,8 +90,13 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function chatExtraBody(config: ChatModelConfig): Record<string, unknown> | undefined {
-  if (config.provider !== "deepseek" || !config.thinking) return undefined;
+/**
+ * DeepSeek-specific body fields (e.g. `thinking`). The Node SDK has no
+ * `extra_body` like the Python SDK — unknown params must be spread directly
+ * into the request params, which the SDK passes through to the JSON body.
+ */
+function chatExtraBody(config: ChatModelConfig): Record<string, unknown> {
+  if (config.provider !== "deepseek" || !config.thinking) return {};
   return { thinking: config.thinking };
 }
 
@@ -104,12 +109,11 @@ async function chatCompletion(args: {
   const client = getProviderClient(args.config.provider);
   if (!client) throw new LLMNotConfiguredError();
 
-  const extraBody = chatExtraBody(args.config);
   const res = await client.chat.completions.create({
     model: args.config.model,
     messages: args.messages,
     ...(args.json ? { response_format: { type: "json_object" as const } } : {}),
-    ...(extraBody ? { extra_body: extraBody } : {}),
+    ...chatExtraBody(args.config),
   });
 
   const usage = res.usage;
@@ -320,7 +324,7 @@ export async function llmVisionJSON<T>({
         .map((i) => `${i.path.join(".")}: ${i.message}`)
         .join("; ");
     } catch (err) {
-      if (useMock(task, (err as Error).message)) return mock();
+      if (shouldUseMock(task, (err as Error).message)) return mock();
       throw err;
     }
   }
@@ -364,7 +368,7 @@ export async function llmText({
     }
     return text;
   } catch (err) {
-    if (useMock(task, (err as Error).message)) return mock();
+    if (shouldUseMock(task, (err as Error).message)) return mock();
     throw err;
   }
 }

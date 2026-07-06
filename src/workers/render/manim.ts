@@ -10,11 +10,19 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { env, features } from "@/lib/env";
+import { createLimiter } from "@/lib/limiter";
 import { uploadVideoToStorage } from "@/lib/supabase/storage";
 import { createWorkerLogger, type WorkerLogger } from "@/lib/worker-log";
 import { ManimRenderError } from "./manim-errors";
 
 const PUBLIC_DIR = path.join(process.cwd(), "public", "generated", "videos");
+
+/**
+ * Manim + ffmpeg saturate several cores per render. Unbounded parallel renders
+ * starve the Node event loop, which stops BullMQ lock renewal ("could not
+ * renew lock") and destabilizes uploads.
+ */
+const renderLimit = createLimiter(env.renderConcurrency);
 
 function assertManimEnabled() {
   if (!features.manim) {
@@ -75,31 +83,34 @@ export async function renderManim(
   const scenePath = path.join(work, "scene.py");
   await writeFile(scenePath, sceneScript, "utf8");
 
-  await new Promise<void>((resolve, reject) => {
-    let stdout = "";
-    let stderr = "";
-    const proc = spawn(
-      env.manimBin,
-      ["-ql", "--format", "mp4", "-o", "out", scenePath, sceneName],
-      { cwd: work }
-    );
-    proc.stdout?.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    proc.stderr?.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    proc.on("error", reject);
-    proc.on("exit", (code) => {
-      if (code === 0) return resolve();
-      const err = new ManimRenderError(code, stdout, stderr);
-      log.error("manim process failed", {
-        exitCode: code ?? "unknown",
-        detailPreview: err.detail.slice(0, 400),
-      });
-      reject(err);
-    });
-  });
+  await renderLimit(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        let stdout = "";
+        let stderr = "";
+        const proc = spawn(
+          env.manimBin,
+          ["-ql", "--format", "mp4", "-o", "out", scenePath, sceneName],
+          { cwd: work }
+        );
+        proc.stdout?.on("data", (chunk) => {
+          stdout += chunk.toString();
+        });
+        proc.stderr?.on("data", (chunk) => {
+          stderr += chunk.toString();
+        });
+        proc.on("error", reject);
+        proc.on("exit", (code) => {
+          if (code === 0) return resolve();
+          const err = new ManimRenderError(code, stdout, stderr);
+          log.error("manim process failed", {
+            exitCode: code ?? "unknown",
+            detailPreview: err.detail.slice(0, 400),
+          });
+          reject(err);
+        });
+      })
+  );
 
   const found = await findMp4(path.join(work, "media"));
   if (!found) {

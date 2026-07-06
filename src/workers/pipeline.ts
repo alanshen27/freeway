@@ -19,33 +19,57 @@ import { generateSubjectImage, generateLessonImage, generateCourseImage } from "
 import { renderManimWithRetries } from "./render/manim-retry";
 import type { CourseJobData } from "@/lib/queue";
 import { getLlmCostSummary, runWithLlmCostContext } from "@/lib/llm";
+import { env } from "@/lib/env";
+import { createLimiter } from "@/lib/limiter";
 import { clearCourseContent } from "@/lib/section-progress";
 import type { ExerciseType } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 
 type LogEntry = { at: string; step: string; msg: string };
 
+/**
+ * Global cap on concurrently generating sections. Without it a big course fans
+ * out every subject × lesson × section at once (100+ tasks), exhausting the
+ * Prisma connection pool (P2024 timeouts) and hammering LLM rate limits.
+ */
+const sectionLimit = createLimiter(env.sectionConcurrency);
+
+/** Signals in-flight sibling tasks to stop after the run has failed/finished. */
+type RunHandle = { aborted: boolean };
+
+const moduleLog = createWorkerLogger("pipeline-log");
+
 let logChain = Promise.resolve();
 
-/** Serialize job log writes so parallel section workers don't clobber each other. */
+/**
+ * Serialize job log writes so parallel section workers don't clobber each other.
+ * Best-effort: never throws (a failed progress write must not kill generation),
+ * never poisons the chain, and never resurrects a COMPLETED/FAILED job — late
+ * writes from orphaned section tasks used to flip finished jobs back to RUNNING.
+ */
 async function log(jobId: string, progress: number, step: string, msg: string) {
-  logChain = logChain.then(async () => {
-    const job = await prisma.generationJob.findUnique({ where: { id: jobId } });
-    const logs = ((job?.logs as unknown as LogEntry[]) ?? []).concat({
-      at: new Date().toISOString(),
-      step,
-      msg,
-    });
-    await prisma.generationJob.update({
-      where: { id: jobId },
-      data: {
-        progress,
+  logChain = logChain
+    .then(async () => {
+      const job = await prisma.generationJob.findUnique({ where: { id: jobId } });
+      if (!job || job.status === "COMPLETED" || job.status === "FAILED") return;
+      const logs = ((job.logs as unknown as LogEntry[]) ?? []).concat({
+        at: new Date().toISOString(),
         step,
-        logs: logs as object,
-        status: "RUNNING",
-      },
+        msg,
+      });
+      await prisma.generationJob.updateMany({
+        where: { id: jobId, status: { in: ["QUEUED", "RUNNING"] } },
+        data: {
+          progress,
+          step,
+          logs: logs as object,
+          status: "RUNNING",
+        },
+      });
+    })
+    .catch((err) => {
+      moduleLog.warn("job log write failed", { jobId, step }, err);
     });
-  });
   await logChain;
 }
 
@@ -110,6 +134,7 @@ async function runCourseGenerationInner(
     parentLog ??
     createWorkerLogger("pipeline", { jobId, courseId, resume });
   const startedAt = performance.now();
+  const run: RunHandle = { aborted: false };
 
   pipelineLog.info("course generation started");
 
@@ -161,7 +186,7 @@ async function runCourseGenerationInner(
       }
     }
 
-    await assertActiveJob(jobId);
+    await assertActiveJob(jobId, run);
 
     const planInput = {
       topic: course.title,
@@ -184,8 +209,17 @@ async function runCourseGenerationInner(
         lessons: subjectPlans.reduce((n, p) => n + p.lessons.length, 0),
       });
     } else {
+      const scale = scaleForCourse({
+        durationWeeks: course.durationWeeks,
+        isTaster: course.isTaster,
+      });
       pipelineLog.info("course scale", {
-        ...scaleForCourse({ durationWeeks: course.durationWeeks, isTaster: course.isTaster }),
+        moduleCount: scale.moduleCount,
+        lessonsPerModule: scale.lessonsPerModule,
+        sectionsPerLesson: scale.sectionsPerLesson,
+        exerciseTypesPerModule: scale.exerciseTypesPerModule,
+        videoDurationSec: `${scale.videoDurationSec.min}-${scale.videoDurationSec.max}`,
+        videoBeatCount: `${scale.videoBeatCount.min}-${scale.videoBeatCount.max}`,
       });
       blueprint = await pipelineLog.timed("plan course", () => planCourse(planInput));
       subjectPlans = await pipelineLog.timed("plan subject lessons", () =>
@@ -222,6 +256,7 @@ async function runCourseGenerationInner(
     if (!course.coverImageUrl) {
       applyCoverWhenReady(
         jobId,
+        run,
         generateCourseImage({
           id: courseId,
           title: blueprint.title,
@@ -273,15 +308,18 @@ async function runCourseGenerationInner(
     let sectionsDone = 0;
     let progressChain = Promise.resolve();
     const bumpSectionProgress = async (msg: string) => {
-      progressChain = progressChain.then(async () => {
-        sectionsDone++;
-        await log(
-          jobId,
-          15 + Math.round((sectionsDone / totalSections) * 80),
-          "content",
-          msg
-        );
-      });
+      if (run.aborted) return;
+      progressChain = progressChain
+        .then(async () => {
+          sectionsDone++;
+          await log(
+            jobId,
+            15 + Math.round((sectionsDone / totalSections) * 80),
+            "content",
+            msg
+          );
+        })
+        .catch(() => {});
       await progressChain;
     };
 
@@ -290,7 +328,7 @@ async function runCourseGenerationInner(
         const subPlan = subjectPlans[si];
         if (!subPlan) return;
 
-        await assertActiveJob(jobId);
+        await assertActiveJob(jobId, run);
 
         let subject = await prisma.subject.findFirst({
           where: { courseId, order: si },
@@ -310,6 +348,7 @@ async function runCourseGenerationInner(
         if (!subject.imageUrl) {
           applyCoverWhenReady(
             jobId,
+            run,
             generateSubjectImage({
               id: subject.id,
               courseTitle: blueprint.title,
@@ -326,7 +365,7 @@ async function runCourseGenerationInner(
 
         await Promise.all(
           subPlan.lessons.map(async (lp, li) => {
-            await assertActiveJob(jobId);
+            await assertActiveJob(jobId, run);
 
             let lesson = await prisma.lesson.findFirst({
               where: { subjectId: subject!.id, order: li },
@@ -360,6 +399,7 @@ async function runCourseGenerationInner(
               const lessonId = lesson.id;
               applyCoverWhenReady(
                 jobId,
+                run,
                 generateLessonImage({
                   id: lessonId,
                   courseTitle: blueprint.title,
@@ -386,23 +426,27 @@ async function runCourseGenerationInner(
             await Promise.all(
               lp.sections.map(async (sec, seci) => {
                 if (existingOrders.has(seci)) return;
-                await generateSection({
-                  jobId,
-                  sec: sec as SectionPlan,
-                  lessonId: lesson!.id,
-                  courseId,
-                  ctx,
-                  order: seci,
-                  onComplete: () =>
-                    bumpSectionProgress(
-                      `Built ${sec.type.toLowerCase()} in "${lp.title}" (${sectionsDone + 1}/${totalSections})`
-                    ),
-                  log: pipelineLog.child({
-                    subject: s.title,
-                    lesson: lp.title,
-                    sectionType: sec.type,
-                    sectionOrder: seci,
-                  }),
+                await sectionLimit(() => {
+                  if (run.aborted) return Promise.resolve();
+                  return generateSection({
+                    jobId,
+                    run,
+                    sec: sec as SectionPlan,
+                    lessonId: lesson!.id,
+                    courseId,
+                    ctx,
+                    order: seci,
+                    onComplete: () =>
+                      bumpSectionProgress(
+                        `Built ${sec.type.toLowerCase()} in "${lp.title}" (${sectionsDone + 1}/${totalSections})`
+                      ),
+                    log: pipelineLog.child({
+                      subject: s.title,
+                      lesson: lp.title,
+                      sectionType: sec.type,
+                      sectionOrder: seci,
+                    }),
+                  });
                 });
               })
             );
@@ -432,6 +476,9 @@ async function runCourseGenerationInner(
     });
     const llmCost = getLlmCostSummary();
     await mergeJobResult(jobId, { courseId, llmCost });
+    // Log first — log() refuses to touch COMPLETED/FAILED jobs, so the status
+    // write must be the last thing that happens.
+    await log(jobId, 100, "done", "Your course is ready.");
     await prisma.generationJob.update({
       where: { id: jobId },
       data: {
@@ -445,8 +492,8 @@ async function runCourseGenerationInner(
       llmCostUsd: llmCost.totalUsd,
       llmCalls: llmCost.calls,
     });
-    await log(jobId, 100, "done", "Your course is ready.");
   } catch (err) {
+    run.aborted = true;
     pipelineLog.error(
       "course generation failed",
       { durationMs: Math.round(performance.now() - startedAt) },
@@ -456,10 +503,12 @@ async function runCourseGenerationInner(
     if (llmCost.calls > 0) {
       await mergeJobResult(jobId, { llmCost }).catch(() => {});
     }
-    await prisma.generationJob.update({
-      where: { id: jobId },
-      data: { status: "FAILED", error: (err as Error).message },
-    });
+    await prisma.generationJob
+      .update({
+        where: { id: jobId },
+        data: { status: "FAILED", error: (err as Error).message },
+      })
+      .catch(() => {});
     await prisma.course
       .update({ where: { id: courseId }, data: { status: "FAILED" } })
       .catch(() => {});
@@ -481,9 +530,11 @@ async function supersedeStaleJobs(courseId: string, jobId: string) {
   });
 }
 
-async function assertActiveJob(jobId: string) {
+async function assertActiveJob(jobId: string, run?: RunHandle) {
+  if (run?.aborted) throw new Error("Generation run was superseded");
   const job = await prisma.generationJob.findUnique({ where: { id: jobId } });
   if (!job || job.status === "FAILED") {
+    if (run) run.aborted = true;
     throw new Error("Generation run was superseded");
   }
 }
@@ -505,6 +556,7 @@ function isStaleGenerationError(err: unknown): boolean {
 /** Cover images generate async — skip DB write if course/lesson was deleted or job superseded. */
 function applyCoverWhenReady(
   jobId: string,
+  run: RunHandle,
   imagePromise: Promise<string | null>,
   apply: (url: string) => Promise<unknown>,
   log?: WorkerLogger
@@ -512,7 +564,7 @@ function applyCoverWhenReady(
   void imagePromise
     .then(async (url) => {
       if (!url) return;
-      await assertActiveJob(jobId);
+      await assertActiveJob(jobId, run);
       await apply(url);
     })
     .catch((err) => {
@@ -523,6 +575,7 @@ function applyCoverWhenReady(
 
 async function generateSection(args: {
   jobId: string;
+  run: RunHandle;
   sec: SectionPlan;
   lessonId: string;
   courseId: string;
@@ -538,13 +591,13 @@ async function generateSection(args: {
   onComplete?: () => Promise<void>;
   log: WorkerLogger;
 }) {
-  const { jobId, sec, lessonId, courseId, ctx, order, onComplete, log: sectionLog } = args;
+  const { jobId, run, sec, lessonId, courseId, ctx, order, onComplete, log: sectionLog } = args;
 
   await sectionLog.timed(`generate ${sec.type.toLowerCase()} section`, async () => {
   switch (sec.type) {
     case "READING": {
       const draft = await writeReadingSection(ctx);
-      await assertActiveJob(jobId);
+      await assertActiveJob(jobId, run);
       await assertLesson(lessonId);
       const built = await buildDocumentWithImages(draft.markdown, draft.images, lessonId);
       await prisma.lessonSection.create({
@@ -560,7 +613,7 @@ async function generateSection(args: {
     }
     case "WORKSHEET": {
       const draft = await writeWorksheetSection(ctx);
-      await assertActiveJob(jobId);
+      await assertActiveJob(jobId, run);
       await assertLesson(lessonId);
       const intro =
         draft.intro.trim() ||
@@ -582,7 +635,7 @@ async function generateSection(args: {
     }
     case "QUESTIONS": {
       const qs = await writeQuestionsSection(ctx);
-      await assertActiveJob(jobId);
+      await assertActiveJob(jobId, run);
       await assertLesson(lessonId);
       await prisma.lessonSection.create({
         data: {
@@ -616,7 +669,7 @@ async function generateSection(args: {
         spec.narration,
         spec.durationSec
       );
-      await assertActiveJob(jobId);
+      await assertActiveJob(jobId, run);
       await assertLesson(lessonId);
       const video = await prisma.video.create({
         data: {
@@ -650,7 +703,7 @@ async function generateSection(args: {
         lessonTitle: ctx.lessonTitle,
         concepts: ctx.goals,
       });
-      await assertActiveJob(jobId);
+      await assertActiveJob(jobId, run);
       await assertLesson(lessonId);
       const exercise = await prisma.exercise.create({
         data: {

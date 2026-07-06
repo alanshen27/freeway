@@ -34,7 +34,7 @@ function compact(bindings: LogBindings): Record<string, string | number | boolea
   return out;
 }
 
-function usePretty(): boolean {
+function shouldUsePretty(): boolean {
   if (process.env.LOG_PRETTY === "0") return false;
   if (process.env.LOG_PRETTY === "1") return true;
   return !isProd;
@@ -43,7 +43,7 @@ function usePretty(): boolean {
 function createRootLogger(): PinoLogger {
   const level = resolveLevel();
   const base = { service: "freeway" };
-  if (usePretty()) {
+  if (shouldUsePretty()) {
     return pino(
       { level, base },
       pinoPretty({

@@ -22,6 +22,21 @@ export const env = {
     process.env.ZHIPUAI_BASE_URL ||
     "https://api.z.ai/api/paas/v4",
   redisUrl: process.env.REDIS_URL || "",
+  /** How many course-generation jobs one worker process runs at once. */
+  workerConcurrency: Math.max(
+    1,
+    Number.parseInt(process.env.WORKER_CONCURRENCY || "1", 10) || 1
+  ),
+  /** Max lesson sections generated concurrently per worker process (bounds DB pool + LLM pressure). */
+  sectionConcurrency: Math.max(
+    1,
+    Number.parseInt(process.env.SECTION_CONCURRENCY || "8", 10) || 8
+  ),
+  /** Max simultaneous Manim renders (CPU-heavy; too many starves the event loop). */
+  renderConcurrency: Math.max(
+    1,
+    Number.parseInt(process.env.RENDER_CONCURRENCY || "2", 10) || 2
+  ),
   serpKey: process.env.SERPAPI_KEY || "",
   manimEnabled: process.env.MANIM_ENABLED === "1",
   manimBin: process.env.MANIM_BIN || "manim",
